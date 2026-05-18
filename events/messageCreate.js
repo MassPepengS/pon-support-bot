@@ -40,9 +40,10 @@ module.exports = {
                 .setAuthor({ name: `${message.author.username} | AutoMod`, iconURL: message.author.displayAvatarURL() })
                 .setDescription(
                     `**USER**\n${message.author} | ${message.author.username}\n` +
+                    `**CHANNEL**\n${message.channel}\n` +
                     `**STAFF**\nAutoMod\n` +
                     `**REASON**\n${reason}\n` +
-                    `**MESSAGE CONTENT**\n${originalContent}\n\n` +
+                    `**MESSAGE CONTENT**\n\`\`\`${originalContent.slice(0, 500)}\`\`\`\n` +
                     `CASE ID: ${caseId} | ${dateStr}`
                 );
             await logChannel.send({ embeds: [logEmbed] });
@@ -89,8 +90,17 @@ module.exports = {
         let afkChanged = false;
 
         if (afkData[guildId] && afkData[guildId][message.author.id]) {
+            const afkInfo = afkData[guildId][message.author.id];
             delete afkData[guildId][message.author.id];
             afkChanged = true;
+
+            // Restore nickname asli
+            if (message.member && message.member.manageable && afkInfo.originalNick) {
+                // Kalau originalNick sama dengan username, set null (hapus nickname)
+                const restoreNick = afkInfo.originalNick === message.author.username ? null : afkInfo.originalNick;
+                message.member.setNickname(restoreNick).catch(() => {});
+            }
+
             message.channel
                 .send(`👋 Welcome back **${message.member.displayName}**, I removed your AFK.`)
                 .then(msg => setTimeout(() => msg.delete().catch(() => {}), 5000));
