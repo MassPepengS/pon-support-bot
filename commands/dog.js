@@ -20,7 +20,7 @@ module.exports = {
                 .setColor('#2F3136')
                 .setTitle('🐶 Woof!')
                 .setImage(imageUrl)
-                .setFooter({ text: 'Powered by Dog API' });
+                .setFooter({ text: 'Pon Cutes' });
 
             if (type === 'SLASH') {
                 return ctx.reply({ embeds: [embed] });

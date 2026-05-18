@@ -220,7 +220,9 @@ client.on('interactionCreate', async interaction => {
                         { name: `\`${p} afk [reason]\``, value: 'Set your status to Away From Keyboard (AFK).' },
                         { name: `\`${p} info\``, value: 'View bot statistics, current ping, and system uptime.' },
                         { name: `\`${p} avatar [user]\``, value: 'Display your own or another member\'s high-resolution avatar.' },
-                        { name: `\`${p} vote\``, value: 'Support our outpost by voting for the bot on community lists.' }
+                        { name: `\`${p} vote\``, value: 'Support our outpost by voting for the bot on community lists.' },
+                        { name: `\`${p} dog / cat\``, value: 'Summon a random cute dog or cat image. 🐶🐱' },
+                        { name: `\`${p} meme\``, value: 'Get a random fresh meme from Reddit. 🤣' }
                     )
                     .setFooter({ text: 'Category: General Commands' });
                 break;
