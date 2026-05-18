@@ -14,7 +14,7 @@ module.exports = {
     async sendHelpMenu(ctx, type) {
         // Membaca file emoji kustom terpisah
         const emojisPath = path.join(__dirname, '../emojis.json');
-        let emojis = { help_main: '🏕️', help_general: '🧭', help_profile: '👤', help_management: '🧱', help_support: '🛠️' };
+        let emojis = { help_main: '🏕️', help_general: '🧭', help_profile: '👤', help_management: '🧱', help_support: '🛠️', help_moderation: '🛡️' };
         if (fs.existsSync(emojisPath)) {
             emojis = JSON.parse(fs.readFileSync(emojisPath, 'utf8'));
         }
@@ -31,13 +31,14 @@ module.exports = {
 
         // EMBED UTAMA (Teks bebas pakai format lengkap)
         const mainEmbed = new EmbedBuilder()
-            .setColor('#2F3136') 
+            .setColor('#2F3136')
             .setTitle('🏕️ PIONEER OUTPOST HELP PANEL')
             .setDescription('Welcome Explorer! Select a category from the dropdown menu below to view available commands and server configurations.')
             .addFields(
                 { name: `${emojis.help_general || '🧭'} General`, value: 'Basic bot interactions, user utilities, fun commands, and AFK.', inline: true },
                 { name: `${emojis.help_profile || '👤'} Profile`, value: 'View player statistics, titles, badges, gamble and games. *(Coming Soon)*', inline: true },
                 { name: `${emojis.help_management || '🧱'} Ch Management & Welcome`, value: 'Tools for channel, role, locks, custom greetings, logs, and suggestions.', inline: true },
+                { name: `${emojis.help_moderation || '🛡️'} Moderation`, value: 'Word filters and auto-moderation tools.', inline: true },
                 { name: `${emojis.help_support || '🛠️'} Support & Utilities`, value: 'Configure custom bot access and administrator rights.', inline: true }
             )
             .setFooter({ text: 'Pioneer Support • Choose a category below' })
@@ -71,6 +72,12 @@ module.exports = {
                     description: 'Manage channels, roles, locks, welcome setup, and logs',
                     value: 'help_management',
                     emoji: getComponentEmoji(emojis.help_management || '🧱')
+                },
+                {
+                    label: 'Moderation',
+                    description: 'Word filters and auto-moderation tools.',
+                    value: 'help_moderation',
+                    emoji: getComponentEmoji(emojis.help_moderation || '🛡️')
                 },
                 {
                     label: 'Support & Utilities',

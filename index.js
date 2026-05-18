@@ -1,8 +1,8 @@
 require('dotenv').config();
-const { 
-    Client, GatewayIntentBits, PermissionFlagsBits, Collection, ChannelType, 
-    EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, 
-    ModalBuilder, TextInputBuilder, TextInputStyle, ActivityType 
+const {
+    Client, GatewayIntentBits, PermissionFlagsBits, Collection, ChannelType,
+    EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder,
+    ModalBuilder, TextInputBuilder, TextInputStyle, ActivityType
 } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
@@ -33,7 +33,7 @@ if (fs.existsSync(commandsPath)) {
     }
 }
 
-// ==================== EVENT HANDLER (BARU) ====================
+// ==================== EVENT HANDLER ====================
 const eventsPath = path.join(__dirname, 'events');
 if (fs.existsSync(eventsPath)) {
     const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
@@ -52,14 +52,26 @@ if (fs.existsSync(eventsPath)) {
 if (!fs.existsSync(SETTINGS_FILE)) fs.writeFileSync(SETTINGS_FILE, JSON.stringify({}));
 if (!fs.existsSync(AFK_FILE)) fs.writeFileSync(AFK_FILE, JSON.stringify({}));
 
+function checkDatabase(guildId) {
+    let settings = {};
+    try { settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch (e) { settings = {}; }
+    let changed = false;
+
+    if (!settings[guildId] || typeof settings[guildId] === 'string') {
+        settings[guildId] = { channelId: null, gifs: [], authorizedUsers: [], logChannelId: null, suggestionChannelId: null, modLogChannelId: null, badWords: [], caseCount: 0, warns: {} };
+        changed = true;
+    }
+    if (!settings[guildId].badWords) { settings[guildId].badWords = []; changed = true; }
+    if (!Array.isArray(settings[guildId].authorizedUsers)) { settings[guildId].authorizedUsers = []; changed = true; }
+    if (changed) fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+    
+    return settings;
+}
+
 // ==================== READY EVENT ====================
 client.once('clientReady', () => {
     console.log(`Success! Bot ${client.user.tag} is online & ready!`);
-    client.user.setActivity({
-        type: ActivityType.Custom,
-        name: 'custom',
-        state: 'Support, 24/7'
-    });
+    client.user.setActivity({ type: ActivityType.Custom, name: 'custom', state: 'Support, 24/7' });
 });
 
 // ==================== WELCOME HANDLER ====================
@@ -68,49 +80,15 @@ client.on('guildMemberAdd', async member => {
     if (welcomeHandler.handleWelcome) await welcomeHandler.handleWelcome(member, SETTINGS_FILE);
 });
 
-function checkDatabase(guildId) {
-    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-    let changed = false;
-    
-    if (!settings[guildId] || typeof settings[guildId] === 'string') {
-        settings[guildId] = { 
-            channelId: typeof settings[guildId] === 'string' ? settings[guildId] : null, 
-            gifs: [], 
-            authorizedUsers: [], 
-            logChannelId: null, 
-            suggestionChannelId: null 
-        };
-        changed = true;
-    }
-    
-    if (!Array.isArray(settings[guildId].authorizedUsers)) {
-        settings[guildId].authorizedUsers = [];
-        changed = true;
-    }
-    
-    if (settings[guildId].logChannelId === undefined) {
-        settings[guildId].logChannelId = null;
-        changed = true;
-    }
-    
-    if (settings[guildId].suggestionChannelId === undefined) {
-        settings[guildId].suggestionChannelId = null;
-        changed = true;
-    }
-    
-    if (changed) fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
-    return settings;
-}
-
 // ==================== INTERACTION HANDLER ====================
 client.on('interactionCreate', async interaction => {
-    
-    // PENANGANAN MENU TICKET
+
+    // 1. PENANGANAN MENU TICKET
     if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
         const reason = interaction.values[0];
         const member = interaction.member;
         const guild = interaction.guild;
-        
+
         try {
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${member.user.username}`,
@@ -121,7 +99,7 @@ client.on('interactionCreate', async interaction => {
                     { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ReadMessageHistory] }
                 ]
             });
-            
+
             await interaction.reply({ content: `✅ Signal received! Head over to your private channel: ${ticketChannel}`, ephemeral: true });
 
             const ticketEmbed = new EmbedBuilder()
@@ -129,11 +107,9 @@ client.on('interactionCreate', async interaction => {
                 .setTitle('🏕️ DISTRESS SIGNAL OPENED')
                 .setDescription(`Welcome to your private channel, <@${member.id}>.\n\n**Category:** ${reason.toUpperCase()}\n\nPlease describe your issue clearly and provide any evidence/screenshots if needed. An Outpost Commander will be with you shortly.`)
                 .setFooter({ text: 'Press the lock button below to close this ticket.' });
-                
-            const closeBtn = new ButtonBuilder().setCustomId('close_ticket').setLabel('Close Ticket & Save Log').setStyle(ButtonStyle.Danger).setEmoji('🔒');
-            const btnRow = new ActionRowBuilder().addComponents(closeBtn);
 
-            await ticketChannel.send({ content: `<@${member.id}>`, embeds: [ticketEmbed], components: [btnRow] });
+            const closeBtn = new ButtonBuilder().setCustomId('close_ticket').setLabel('Close Ticket & Save Log').setStyle(ButtonStyle.Danger).setEmoji('🔒');
+            await ticketChannel.send({ content: `<@${member.id}>`, embeds: [ticketEmbed], components: [new ActionRowBuilder().addComponents(closeBtn)] });
         } catch (error) {
             console.error(error);
             await interaction.reply({ content: '❌ Failed to deploy ticket channel!', ephemeral: true });
@@ -141,13 +117,13 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // PENANGANAN TOMBOL TUTUP TICKET
+    // 2. PENANGANAN TOMBOL TUTUP TICKET
     if (interaction.isButton() && interaction.customId === 'close_ticket') {
         try {
             await interaction.reply('🔒 Securing data logs and dismantling channel in 5 seconds...');
             const channel = interaction.channel;
             const guildId = interaction.guild.id;
-            const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+            const settings = checkDatabase(guildId);
             const logChannelId = settings[guildId]?.logChannelId;
 
             const messages = await channel.messages.fetch({ limit: 100 });
@@ -180,7 +156,7 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // PENANGANAN TOMBOL SUGGESTION
+    // 3. PENANGANAN TOMBOL SUGGESTION PANEL
     if (interaction.isButton() && interaction.customId === 'create_suggestion') {
         const modal = new ModalBuilder().setCustomId('suggestion_modal').setTitle('Submit a Suggestion');
         const suggestionInput = new TextInputBuilder()
@@ -189,17 +165,17 @@ client.on('interactionCreate', async interaction => {
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(true)
             .setMaxLength(1000);
-            
+
         modal.addComponents(new ActionRowBuilder().addComponents(suggestionInput));
         await interaction.showModal(modal);
         return;
     }
-    
-    // PENANGANAN MODAL SUGGESTION
+
+    // 4. PENANGANAN MODAL SUGGESTION SUBMIT
     if (interaction.isModalSubmit() && interaction.customId === 'suggestion_modal') {
         const suggestionText = interaction.fields.getTextInputValue('suggestion_text');
         const guildId = interaction.guild.id;
-        const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+        const settings = checkDatabase(guildId);
         const targetChannelId = settings[guildId]?.suggestionChannelId;
         const targetChannel = targetChannelId ? interaction.guild.channels.cache.get(targetChannelId) : interaction.channel;
 
@@ -223,7 +199,7 @@ client.on('interactionCreate', async interaction => {
                 .setTitle('💡 PIONEER IDEAS & SUGGESTIONS')
                 .setDescription('Have a thought that could make **Pioneer Outpost Nusa** even greater? Share it with the community!\n\n• Click the button below to submit your suggestion.\n• The community can vote using ⬆️ and ⬇️ reactions.\n• Highly voted ideas will be reviewed and possibly implemented by the Outpost Commanders.\n\n*Help us build a better world!*')
                 .setImage('https://i.imgur.com/feJtRAt.gif');
-                
+
             const btn = new ButtonBuilder().setCustomId('create_suggestion').setLabel('CREATE SUGGESTION').setStyle(ButtonStyle.Primary).setEmoji('📝');
             await interaction.channel.send({ embeds: [panelEmbed], components: [new ActionRowBuilder().addComponents(btn)] });
             await interaction.reply({ content: `✅ Your suggestion has been sent to ${targetChannel}!`, ephemeral: true });
@@ -234,25 +210,24 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // ==================== DROPDOWN HELP MENU SYSTEM ====================
+    // 5. DROPDOWN HELP MENU SYSTEM (SINKRONISASI EM0JIS.JSON SECARA DINAMIS)
     if (interaction.isStringSelectMenu() && interaction.customId === 'help_menu') {
         const selection = interaction.values[0];
         const embed = new EmbedBuilder().setTimestamp();
         const p = PREFIX;
-        
-        // Membaca database emoji kustom
+
         const emojisPath = path.join(__dirname, 'emojis.json');
-        let emojis = { help_main: '🏕️', help_general: '🧭', help_profile: '👤', help_management: '🧱', help_support: '🛠️' };
+        let emojis = { help_main: '🏕️', help_general: '🧭', help_profile: '👤', help_management: '🧱', help_support: '🛠️', help_moderation: '🛡️' };
         if (fs.existsSync(emojisPath)) emojis = JSON.parse(fs.readFileSync(emojisPath, 'utf8'));
-        
-        // Fungsi pembantu agar emoji custom terbaca di judul (Title) Embed
+
         const getEmoji = (emojiStr, fallback) => {
-            const match = emojiStr.match(/\d+/);
+            if (!emojiStr) return fallback;
+            const match = String(emojiStr).match(/\d+/);
             if (match && interaction.guild) {
                 const guildEmoji = interaction.guild.emojis.cache.get(match[0]);
                 if (guildEmoji) return guildEmoji.toString();
             }
-            return fallback;
+            return emojiStr;
         };
 
         switch (selection) {
@@ -261,12 +236,23 @@ client.on('interactionCreate', async interaction => {
                     .setTitle('🏕️ PIONEER OUTPOST HELP PANEL')
                     .setDescription('Welcome Explorer! Select a category from the dropdown menu below to view available commands and server configurations.')
                     .addFields(
-                        { name: `${emojis.help_general || '🧭'} General`, value: 'Basic bot interactions, user utilities, and AFK systems.', inline: true },
-                        { name: `${emojis.help_profile || '👤'} Profile`, value: 'View player statistics, titles, badges, gamble and games. *(Coming Soon)*', inline: true },
-                        { name: `${emojis.help_management || '🧱'} Ch Management & Welcome`, value: 'Tools for channel, role, locks, custom greetings, logs, and suggestions.', inline: true },
-                        { name: `${emojis.help_support || '🛠️'} Support & Utilities`, value: 'Configure custom bot access and administrator rights.', inline: true }
+                        { name: `${getEmoji(emojis.help_general, '🧭')} General`, value: 'Basic bot interactions, user utilities, and AFK systems.', inline: true },
+                        { name: `${getEmoji(emojis.help_profile, '👤')} Profile`, value: 'View player statistics, titles, badges, gamble and games. *(Coming Soon)*', inline: true },
+                        { name: `${getEmoji(emojis.help_management, '🧱')} Ch Management & Welcome`, value: 'Tools for channel, role, locks, custom greetings, logs, and suggestions.', inline: true },
+                        { name: `${getEmoji(emojis.help_moderation, '🛡️')} Moderation`, value: 'Word filters and auto-moderation tools.', inline: true },
+                        { name: `${getEmoji(emojis.help_support, '🛠️')} Support & Utilities`, value: 'Configure custom bot access and administrator rights.', inline: true }
                     )
                     .setFooter({ text: 'Pioneer Support • Choose a category below' });
+                break;
+
+            case 'help_moderation':
+                embed.setColor('#2F3136')
+                    .setTitle(`${getEmoji(emojis.help_moderation, '🛡️')} MODERATION PANEL`)
+                    .setDescription('Tools to keep your outpost safe and clean from violations:')
+                    .addFields(
+                        { name: '📝 Word Filter System', value: `\`${p} word add [word]\` - Add a word to the filter list.\n\`${p} word rmv [word]\` - Remove a word from the filter.\n\`${p} word list\` - View all filtered words.` }
+                    )
+                    .setFooter({ text: 'Category: Moderation (Admin Only)' });
                 break;
 
             case 'help_general':
@@ -315,43 +301,105 @@ client.on('interactionCreate', async interaction => {
                 break;
         }
 
-        await interaction.update({ embeds: [embed] });
+        await interaction.update({ embeds: [embed] }).catch(()=>{});
         return;
     }
 
+    // 6. EXECUTE SLASH COMMANDS
     if (!interaction.isChatInputCommand()) return;
-    
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
-
+    
     const settings = checkDatabase(interaction.guild.id);
     const isRealAdmin = interaction.member ? interaction.member.permissions.has(PermissionFlagsBits.ManageGuild) : false;
     const isCustomAdmin = settings[interaction.guild.id].authorizedUsers.includes(interaction.user.id);
-    
-    try { 
-        await command.executeSlash(interaction, SETTINGS_FILE, settings, isRealAdmin, isCustomAdmin); 
-    } catch (error) { 
-        console.error(error); 
-    }
+    try { await command.executeSlash(interaction, SETTINGS_FILE, settings, isRealAdmin, isCustomAdmin); } 
+    catch (error) { console.error(error); }
 });
 
-// ==================== MESSAGE HANDLER & AFK SYSTEM ====================
+// ==================== MESSAGE HANDLER, AUTO-MOD & AFK ====================
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
     const guildId = message.guild.id;
-    let afkData = JSON.parse(fs.readFileSync(AFK_FILE, 'utf8'));
+    const settings = checkDatabase(guildId);
+    const contentLower = message.content.toLowerCase();
+    const contentRaw = message.content;
+
+    // ------------------ 1. AUTO-MODERATION SYSTEM ------------------
+    const badWords = settings[guildId].badWords || [];
+    const isCommand = contentLower.startsWith(`${PREFIX.toLowerCase()} `);
+    let isViolating = false;
+
+    // Fungsi Pengirim Log Otomatis ke Tracker Channel
+    const sendAutoModLog = async (reason, originalContent) => {
+        let logChannelId = settings[guildId].modLogChannelId;
+        let logChannel = logChannelId ? message.guild.channels.cache.get(logChannelId) : message.guild.channels.cache.find(c => c.name.includes('mod'));
+        
+        if (logChannel) {
+            settings[guildId].caseCount = (settings[guildId].caseCount || 0) + 1;
+            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            const caseId = settings[guildId].caseCount.toString().padStart(6, '0');
+            
+            const logEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setAuthor({ name: `${message.author.username} | AutoMod`, iconURL: message.author.displayAvatarURL() })
+                .setDescription(`**USER**\n${message.author} | ${message.author.username}\n**STAFF**\nAutoMod\n**REASON**\n${reason}\n**MESSAGE CONTENT**\n${originalContent}\n\nCASE ID: ${caseId}`);
+            
+            logChannel.send({ embeds: [logEmbed] }).catch(()=>{});
+        }
+    };
+
+    // A. Filter Kata Dinamis (Kebal Spasi HP & Otomatis Terhapus dalam 5 Detik)
+    if (!isCommand && badWords.length > 0) {
+        const safeWords = badWords.map(w => w.trim().toLowerCase()).filter(w => w !== '');
+        const hasBadWord = safeWords.some(word => contentLower.includes(word));
+        
+        if (hasBadWord) {
+            await message.delete().catch(()=>{});
+            message.channel.send(`⚠️ ${message.author}, Please, mind your language!`)
+                .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
+            sendAutoModLog('Triggered Word Filter', contentRaw);
+            isViolating = true;
+        }
+    }
+
+    // B. Filter Link Spam
+    const linkRegex = /(https?:\/\/[^\s]+)/g;
+    if (!isViolating && !isCommand && linkRegex.test(contentLower) && !message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+        await message.delete().catch(()=>{});
+        message.channel.send(`🔗 ${message.author}, sending links is not allowed in this server!`)
+            .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
+        sendAutoModLog('Posted a Link', contentRaw);
+        isViolating = true;
+    }
+
+    // C. Filter Caps Lock Berlebihan (>70%)
+    if (!isViolating && !isCommand && contentRaw.length > 15 && !message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+        const capsCount = contentRaw.replace(/[^A-Z]/g, '').length;
+        if ((capsCount / contentRaw.length) * 100 > 70) {
+            await message.delete().catch(()=>{});
+            message.channel.send(`🔠 ${message.author}, please turn off your Caps Lock!`)
+                .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
+            sendAutoModLog('Excessive Caps Lock', contentRaw);
+            isViolating = true;
+        }
+    }
+
+    // Jika pesan terhapus oleh AutoMod, stop agar AFK & Command tidak dieksekusi berbarengan
+    if (isViolating) return;
+
+    // ------------------ 2. AFK SYSTEM ------------------
+    let afkData = {};
+    try { afkData = JSON.parse(fs.readFileSync(AFK_FILE, 'utf8')); } catch (e) {}
     let afkChanged = false;
 
-    // 1. Cek jika member yang AFK mulai nge-chat (Hapus AFK-nya tanpa mode reply)
     if (afkData[guildId] && afkData[guildId][message.author.id]) {
         delete afkData[guildId][message.author.id];
         afkChanged = true;
-        message.channel.send(`👋 Welcome back **${message.member.displayName}**, I removed your AFK.`)
-            .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000));
+        message.channel.send(`👋 Welcome back **${message.member.displayName}**, I removed your AFK.`).then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000));
     }
 
-    // 2. Cek jika pesan ini me-mention (tag) orang yang sedang AFK (Tanpa mode reply)
     if (message.mentions.users.size > 0 && afkData[guildId]) {
         message.mentions.users.forEach(user => {
             if (afkData[guildId][user.id]) {
@@ -362,35 +410,25 @@ client.on('messageCreate', async message => {
         });
     }
 
-    // Simpan perubahan ke afk.json jika ada yang dihapus
     if (afkChanged) fs.writeFileSync(AFK_FILE, JSON.stringify(afkData, null, 2));
 
-    // Eksekusi Prefix Command biasa
-    const originalTrimmed = message.content.trim();
-    const contentLower = originalTrimmed.toLowerCase();
-    
+    // ------------------ 3. PREFIX COMMAND HANDLER ------------------
     if (!contentLower.startsWith(PREFIX.toLowerCase())) return;
-
-    const args = originalTrimmed.slice(PREFIX.length).trim().split(/\s+/);
+    const args = contentRaw.slice(PREFIX.length).trim().split(/\s+/);
     if (args.length === 0) return;
-    
+
     const commandName = args.shift().toLowerCase();
     const command = client.commands.get(commandName);
-    
     if (!command) return;
 
-    const settings = checkDatabase(message.guild.id);
     const isRealAdmin = message.member ? message.member.permissions.has(PermissionFlagsBits.ManageGuild) : false;
-    const isCustomAdmin = settings[message.guild.id].authorizedUsers.includes(message.author.id);
+    const isCustomAdmin = settings[guildId].authorizedUsers.includes(message.author.id);
     
-    // 🔥 TRIK PEMBAJAKAN UTAMA: Mengubah semua .reply menjadi channel.send otomatis khusus tipe Prefix
+    // Trik pembajakan reply otomatis khusus Prefix Command
     message.reply = (content) => message.channel.send(content);
 
-    try { 
-        await command.executePrefix(message, args, SETTINGS_FILE, settings, isRealAdmin, isCustomAdmin); 
-    } catch (error) { 
-        console.error(error); 
-    }
+    try { await command.executePrefix(message, args, SETTINGS_FILE, settings, isRealAdmin, isCustomAdmin); } 
+    catch (error) { console.error(error); }
 });
 
 client.login(process.env.TOKEN);
