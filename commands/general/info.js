@@ -7,8 +7,9 @@ module.exports = {
         return message.reply({ embeds: [embed] });
     },
     async executeSlash(interaction, SETTINGS_FILE, settings, isRealAdmin, isCustomAdmin) {
+        await interaction.deferReply();
         const embed = await this.buildInfoEmbed(interaction.client, interaction.createdTimestamp);
-        return interaction.reply({ embeds: [embed] });
+        return interaction.editReply({ embeds: [embed] });
     },
 
     async buildInfoEmbed(client, startTimestamp) {

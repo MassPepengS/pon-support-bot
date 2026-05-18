@@ -11,26 +11,30 @@ module.exports = {
 
     async sendMeme(ctx, type) {
         try {
-            // Mengambil meme acak dari Meme API (sumber: Reddit)
+            if (type === 'SLASH') await ctx.deferReply();
+
             const response = await fetch('https://meme-api.com/gimme', { signal: AbortSignal.timeout(8000) });
             const data = await response.json();
 
             const embed = new EmbedBuilder()
-                .setColor('#2F3136') // Warna transparan dark mode
+                .setColor('#2F3136')
                 .setTitle(data.title || '🤣 Random Meme')
                 .setURL(data.postLink || 'https://reddit.com')
                 .setImage(data.url)
                 .setFooter({ text: `Dari r/${data.subreddit} • 👍 ${data.ups || 0} Upvotes` });
 
             if (type === 'SLASH') {
-                return ctx.reply({ embeds: [embed] });
+                return ctx.editReply({ embeds: [embed] });
             } else {
-                return ctx.channel.send({ embeds: [embed] }); // Kirim tanpa reply
+                return ctx.channel.send({ embeds: [embed] });
             }
         } catch (error) {
             console.error(error);
-            const errorMsg = '❌ Waduh, sistem gagal menangkap meme kocak. Coba lagi nanti wak!';
-            if (type === 'SLASH') return ctx.reply({ content: errorMsg, ephemeral: true });
+            const errorMsg = '❌ Failed to fetch meme. Try again later!';
+            if (type === 'SLASH') {
+                if (ctx.deferred) return ctx.editReply({ content: errorMsg });
+                return ctx.reply({ content: errorMsg, ephemeral: true });
+            }
             else return ctx.channel.send({ content: errorMsg });
         }
     }

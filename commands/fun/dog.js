@@ -11,7 +11,8 @@ module.exports = {
 
     async sendDog(ctx, type) {
         try {
-            // Mengambil gambar dari API gratis Dog.ceo
+            if (type === 'SLASH') await ctx.deferReply();
+
             const response = await fetch('https://dog.ceo/api/breeds/image/random', { signal: AbortSignal.timeout(8000) });
             const data = await response.json();
             const imageUrl = data.message;
@@ -23,14 +24,17 @@ module.exports = {
                 .setFooter({ text: 'Pon Cutes' });
 
             if (type === 'SLASH') {
-                return ctx.reply({ embeds: [embed] });
+                return ctx.editReply({ embeds: [embed] });
             } else {
-                return ctx.channel.send({ embeds: [embed] }); // Mengirim pesan biasa tanpa reply
+                return ctx.channel.send({ embeds: [embed] });
             }
         } catch (error) {
             console.error(error);
-            const errorMsg = '❌ Waduh, sistem gagal menangkap gambar anjing. Coba lagi nanti wak!';
-            if (type === 'SLASH') return ctx.reply({ content: errorMsg, ephemeral: true });
+            const errorMsg = '❌ Failed to fetch dog image. Try again later!';
+            if (type === 'SLASH') {
+                if (ctx.deferred) return ctx.editReply({ content: errorMsg });
+                return ctx.reply({ content: errorMsg, ephemeral: true });
+            }
             else return ctx.channel.send({ content: errorMsg });
         }
     }
