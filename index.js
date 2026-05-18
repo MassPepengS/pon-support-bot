@@ -60,7 +60,7 @@ function checkDatabase(guildId) {
     if (!settings[guildId].badWords) { settings[guildId].badWords = []; changed = true; }
     if (!Array.isArray(settings[guildId].authorizedUsers)) { settings[guildId].authorizedUsers = []; changed = true; }
     if (!Array.isArray(settings[guildId].linkAllowedChannels)) { settings[guildId].linkAllowedChannels = []; changed = true; }
-    
+
     if (changed) fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
     return settings;
 }
@@ -241,11 +241,11 @@ client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
-    
+
     const settings = checkDatabase(interaction.guild.id);
     const isRealAdmin = interaction.member ? interaction.member.permissions.has(PermissionFlagsBits.ManageGuild) : false;
     const isCustomAdmin = settings[interaction.guild.id].authorizedUsers.includes(interaction.user.id);
-    try { await command.executeSlash(interaction, SETTINGS_FILE, settings, isRealAdmin, isCustomAdmin); } 
+    try { await command.executeSlash(interaction, SETTINGS_FILE, settings, isRealAdmin, isCustomAdmin); }
     catch (error) { console.error(error); }
 });
 
@@ -263,18 +263,44 @@ client.on('messageCreate', async message => {
     const isCommand = contentLower.startsWith(`${PREFIX.toLowerCase()} `);
     let isViolating = false;
 
+    // FUNGSI PENGIRIM LOG (TAHAN BANTING - ANTI REJECT DISCORD)
     const sendAutoModLog = async (reason, originalContent) => {
-        let logChannelId = settings[guildId].modLogChannelId;
-        let logChannel = logChannelId ? message.guild.channels.cache.get(logChannelId) : message.guild.channels.cache.find(c => c.name.includes('mod'));
-        if (logChannel) {
-            settings[guildId].caseCount = (settings[guildId].caseCount || 0) + 1;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
-            const caseId = settings[guildId].caseCount.toString().padStart(6, '0');
+        try {
+            let logChannelId = settings[guildId].modLogChannelId;
+            let logChannel = null;
+            if (logChannelId) {
+                logChannel = message.guild.channels.cache.get(logChannelId) || await message.guild.channels.fetch(logChannelId).catch(()=>null);
+            } else {
+                logChannel = message.guild.channels.cache.find(c => c.name.includes('mod'));
+            }
+            
+            if (!logChannel) return;
+
+            let caseId = "000000";
+            try {
+                let db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+                if (!db[guildId]) db[guildId] = {};
+                db[guildId].caseCount = (db[guildId].caseCount || 0) + 1;
+                fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
+                caseId = db[guildId].caseCount.toString().padStart(6, '0');
+            } catch (err) {
+                caseId = "ERR" + Math.floor(Math.random() * 1000);
+            }
+            
+            const safeContent = originalContent.length > 1000 ? originalContent.substring(0, 1000) + "..." : originalContent;
+            
             const logEmbed = new EmbedBuilder()
                 .setColor('#ED4245')
-                .setAuthor({ name: `${message.author.username} | AutoMod`, iconURL: message.author.displayAvatarURL() })
-                .setDescription(`**USER**\n${message.author} | ${message.author.username}\n**STAFF**\nAutoMod\n**REASON**\n${reason}\n**MESSAGE CONTENT**\n${originalContent}\n\nCASE ID: ${caseId}`);
-            logChannel.send({ embeds: [logEmbed] }).catch(()=>{});
+                .setAuthor({ name: `AutoMod | ${message.author.username}` }) 
+                .setDescription(`**USER**\n<@${message.author.id}> | ${message.author.username}\n**STAFF**\nAutoMod\n**REASON**\n${reason}\n**MESSAGE CONTENT**\n${safeContent}\n\n**CASE ID:** ${caseId}`)
+                .setTimestamp();
+            
+            // JIKA DISCORD MENOLAK EMBED, KIRIM TEKS BIASA SEBAGAI CADANGAN!
+            await logChannel.send({ embeds: [logEmbed] }).catch(async (e) => {
+                await logChannel.send(`🚨 **AUTOMOD LOG (Fallback)** 🚨\nUser: <@${message.author.id}>\nReason: ${reason}\nCase: ${caseId}\nContent: ${safeContent}`);
+            });
+        } catch (error) {
+            console.error("Gagal mengirim log:", error);
         }
     };
 
@@ -282,32 +308,31 @@ client.on('messageCreate', async message => {
         const safeWords = badWords.map(w => w.trim().toLowerCase()).filter(w => w !== '');
         const hasBadWord = safeWords.some(word => contentLower.includes(word));
         if (hasBadWord) {
-            await message.delete().catch(()=>{});
-            message.channel.send(`⚠️ ${message.author}, Please, mind your language!`)
-                .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
-            sendAutoModLog('Triggered Word Filter', contentRaw);
             isViolating = true;
+            await sendAutoModLog('Triggered Word Filter', contentRaw); 
+            await message.delete().catch(()=>{}); 
+            message.channel.send(`⚠️ <@${message.author.id}>, Please, mind your language!`)
+                .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
         }
     }
 
-    // UPDATE: Filter Link sekarang akan BYPASS (mengabaikan) jika channel tersebut ada di daftar yang diizinkan!
-    const linkRegex = /(https?:\/\/[^\s]+)/g;
+    const linkRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|discord\.gg\/[^\s]+)/gi;
     if (!isViolating && !isCommand && !isLinkAllowedChannel && linkRegex.test(contentLower) && !message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-        await message.delete().catch(()=>{});
-        message.channel.send(`🔗 ${message.author}, sending links is not allowed in this channel!`)
-            .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
-        sendAutoModLog('Posted a Link', contentRaw);
         isViolating = true;
+        await sendAutoModLog('Posted a Link', contentRaw); 
+        await message.delete().catch(()=>{}); 
+        message.channel.send(`🔗 <@${message.author.id}>, sending links is not allowed in this channel!`)
+            .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
     }
 
     if (!isViolating && !isCommand && contentRaw.length > 15 && !message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
         const capsCount = contentRaw.replace(/[^A-Z]/g, '').length;
         if ((capsCount / contentRaw.length) * 100 > 70) {
-            await message.delete().catch(()=>{});
-            message.channel.send(`🔠 ${message.author}, please turn off your Caps Lock!`)
-                .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
-            sendAutoModLog('Excessive Caps Lock', contentRaw);
             isViolating = true;
+            await sendAutoModLog('Excessive Caps Lock', contentRaw);
+            await message.delete().catch(()=>{});
+            message.channel.send(`🔠 <@${message.author.id}>, please turn off your Caps Lock!`)
+                .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
         }
     }
 
@@ -345,10 +370,10 @@ client.on('messageCreate', async message => {
 
     const isRealAdmin = message.member ? message.member.permissions.has(PermissionFlagsBits.ManageGuild) : false;
     const isCustomAdmin = settings[guildId].authorizedUsers.includes(message.author.id);
-    
+
     message.reply = (content) => message.channel.send(content);
 
-    try { await command.executePrefix(message, args, SETTINGS_FILE, settings, isRealAdmin, isCustomAdmin); } 
+    try { await command.executePrefix(message, args, SETTINGS_FILE, settings, isRealAdmin, isCustomAdmin); }
     catch (error) { console.error(error); }
 });
 

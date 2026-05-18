@@ -4,7 +4,7 @@ module.exports = {
     name: 'set',
     async executePrefix(message, args, SETTINGS_FILE, settings, isRealAdmin, isCustomAdmin) {
         if (!isRealAdmin && !isCustomAdmin) return message.reply('❌ No permission!');
-        
+
         const sub = args[0] ? args[0].toLowerCase() : null;
 
         // Set Welcome Channel
@@ -18,7 +18,7 @@ module.exports = {
             settings[message.guild.id].channelId = chan.id;
             fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
             const replyMsg = await message.reply(`✅ Success! Welcome target set to ${chan}`);
-            
+
             setTimeout(() => replyMsg.delete().catch(() => {}), 5000);
             await message.delete().catch(() => {});
             return;
@@ -35,7 +35,7 @@ module.exports = {
             settings[message.guild.id].logChannelId = chan.id;
             fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
             const replyMsg = await message.reply(`✅ Success! Ticket transcripts will now be sent to ${chan}`);
-            
+
             setTimeout(() => replyMsg.delete().catch(() => {}), 5000);
             await message.delete().catch(() => {});
             return;
@@ -52,13 +52,13 @@ module.exports = {
             settings[message.guild.id].suggestionChannelId = chan.id;
             fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
             const replyMsg = await message.reply(`✅ Success! Suggestion posts will now be sent to ${chan}`);
-            
+
             setTimeout(() => replyMsg.delete().catch(() => {}), 5000);
             await message.delete().catch(() => {});
             return;
         }
 
-        // Set Moderation Log Channel (UNTUK WARN, KICK, BAN, MUTE)
+        // Set Moderation Log Channel (UNTUK AUTOMOD, WARN, KICK, BAN)
         if (sub === 'mod' || sub === 'moderation') {
             const chan = message.mentions.channels.first();
             if (!chan) {
@@ -68,14 +68,14 @@ module.exports = {
             }
             settings[message.guild.id].modLogChannelId = chan.id;
             fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
-            const replyMsg = await message.reply(`✅ Success! Moderation logs will now be sent to ${chan}`);
-            
+            const replyMsg = await message.reply(`✅ Success! Moderation & AutoMod logs will now be sent to ${chan}`);
+
             setTimeout(() => replyMsg.delete().catch(() => {}), 5000);
             await message.delete().catch(() => {});
             return;
         }
 
-        const invalidMsg = await message.reply('❌ Invalid command! Use `wcm`, `log`, `sug`, or `mod`.');
+        const invalidMsg = await message.reply('❌ Invalid command! Use `pon set wcm`, `pon set log`, `pon set sug`, or `pon set mod`.');
         setTimeout(() => invalidMsg.delete().catch(() => {}), 5000);
     },
 
@@ -105,12 +105,11 @@ module.exports = {
             return interaction.reply({ content: `✅ Success! Suggestion posts will now be sent to ${chan}`, ephemeral: true });
         }
 
-        // Slash Command untuk Mod Log
         if (sub === 'mod' || sub === 'moderation') {
             const chan = interaction.options.getChannel('channel');
             settings[interaction.guild.id].modLogChannelId = chan.id;
             fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
-            return interaction.reply({ content: `✅ Success! Moderation logs will now be sent to ${chan}`, ephemeral: true });
+            return interaction.reply({ content: `✅ Success! Moderation & AutoMod logs will now be sent to ${chan}`, ephemeral: true });
         }
     }
 };
