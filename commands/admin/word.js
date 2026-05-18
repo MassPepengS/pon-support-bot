@@ -1,4 +1,4 @@
-const fs = require('fs');
+const { saveSettings } = require('../../utils/database');
 
 module.exports = {
     name: 'word',
@@ -33,7 +33,7 @@ module.exports = {
             }
             
             settings[guildId].badWords.push(wordInput);
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             return message.reply(`✅ Successfully added **"${wordInput}"** to the filter list.`);
         }
 
@@ -47,7 +47,7 @@ module.exports = {
             }
             
             settings[guildId].badWords.splice(index, 1);
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             return message.reply(`✅ Successfully removed **"${wordInput}"** from the filter list.`);
         }
 

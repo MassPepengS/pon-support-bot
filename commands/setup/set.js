@@ -1,4 +1,4 @@
-const fs = require('fs');
+const { saveSettings } = require('../../utils/database');
 
 module.exports = {
     name: 'set',
@@ -16,7 +16,7 @@ module.exports = {
                 return;
             }
             settings[message.guild.id].channelId = chan.id;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             const replyMsg = await message.reply(`✅ Success! Welcome target set to ${chan}`);
             
             setTimeout(() => replyMsg.delete().catch(() => {}), 5000);
@@ -33,7 +33,7 @@ module.exports = {
                 return;
             }
             settings[message.guild.id].logChannelId = chan.id;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             const replyMsg = await message.reply(`✅ Success! Ticket transcripts will now be sent to ${chan}`);
             
             setTimeout(() => replyMsg.delete().catch(() => {}), 5000);
@@ -50,7 +50,7 @@ module.exports = {
                 return;
             }
             settings[message.guild.id].suggestionChannelId = chan.id;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             const replyMsg = await message.reply(`✅ Success! Suggestion posts will now be sent to ${chan}`);
             
             setTimeout(() => replyMsg.delete().catch(() => {}), 5000);
@@ -67,7 +67,7 @@ module.exports = {
                 return;
             }
             settings[message.guild.id].modLogChannelId = chan.id;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             const replyMsg = await message.reply(`✅ Success! Moderation logs will now be sent to ${chan}`);
             
             setTimeout(() => replyMsg.delete().catch(() => {}), 5000);
@@ -87,21 +87,21 @@ module.exports = {
         if (sub === 'wcm') {
             const chan = interaction.options.getChannel('channel');
             settings[interaction.guild.id].channelId = chan.id;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             return interaction.reply({ content: `✅ Success! Welcome target set to ${chan}`, ephemeral: true });
         }
 
         if (sub === 'log') {
             const chan = interaction.options.getChannel('channel');
             settings[interaction.guild.id].logChannelId = chan.id;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             return interaction.reply({ content: `✅ Success! Ticket transcripts will now be sent to ${chan}`, ephemeral: true });
         }
 
         if (sub === 'sug') {
             const chan = interaction.options.getChannel('channel');
             settings[interaction.guild.id].suggestionChannelId = chan.id;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             return interaction.reply({ content: `✅ Success! Suggestion posts will now be sent to ${chan}`, ephemeral: true });
         }
 
@@ -109,7 +109,7 @@ module.exports = {
         if (sub === 'mod' || sub === 'moderation') {
             const chan = interaction.options.getChannel('channel');
             settings[interaction.guild.id].modLogChannelId = chan.id;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             return interaction.reply({ content: `✅ Success! Moderation logs will now be sent to ${chan}`, ephemeral: true });
         }
     }

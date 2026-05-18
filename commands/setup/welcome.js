@@ -1,5 +1,6 @@
 const { EmbedBuilder, AttachmentBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const fs = require('fs');
+const { saveSettings } = require('../../utils/database');
 
 const DEFAULT_GIFS = [
     'https://i.imgur.com/BglAjSy.gif', 'https://i.imgur.com/vrQg7vL.gif', 
@@ -85,7 +86,7 @@ module.exports = {
             if (currentGifs.length >= 5) return ctx.reply('❌ Limit of 5 GIFs reached!');
             currentGifs.push(directLink);
             settings[guildId].gifs = currentGifs;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             return ctx.reply(`✅ Added GIF (${currentGifs.length}/5)!`);
         }
 
@@ -103,7 +104,7 @@ module.exports = {
 
             currentGifs.splice(num - 1, 1);
             settings[guildId].gifs = currentGifs;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             return ctx.reply(`✅ Removed GIF #${num}!`);
         }
     }

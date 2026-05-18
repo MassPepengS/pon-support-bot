@@ -43,7 +43,7 @@ function checkDatabase(guildId) {
         changed = true;
     }
 
-    if (changed) fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+    if (changed) saveSettings(settings);
     return settings;
 }
 

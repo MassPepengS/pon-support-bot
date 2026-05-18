@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const fs = require('fs');
+const { saveSettings } = require('../../utils/database');
 
 module.exports = {
     name: 'warn',
@@ -18,7 +18,27 @@ module.exports = {
 
         // Alasan
         const reason = args.slice(1).join(' ') || 'No reason provided';
-        const guildId = message.guild.id;
+
+        return this.handleWarn(message, target, reason, SETTINGS_FILE, settings, 'PREFIX');
+    },
+
+    async executeSlash(interaction, SETTINGS_FILE, settings, isRealAdmin, isCustomAdmin) {
+        if (!isRealAdmin && !isCustomAdmin) {
+            return interaction.reply({ content: "❌ You don't have permission to use this command.", ephemeral: true });
+        }
+
+        const user = interaction.options.getUser('user');
+        const target = interaction.guild.members.cache.get(user.id) || await interaction.guild.members.fetch(user.id);
+        const reason = interaction.options.getString('reason') || 'No reason provided';
+
+        return this.handleWarn(interaction, target, reason, SETTINGS_FILE, settings, 'SLASH');
+    },
+
+    async handleWarn(ctx, target, reason, SETTINGS_FILE, settings, type) {
+        const isSlash = type === 'SLASH';
+        const guild = ctx.guild;
+        const guildId = guild.id;
+        const staff = isSlash ? ctx.user : ctx.author;
         const targetId = target.id;
 
         // Inisialisasi struktur data di settings jika belum ada
@@ -53,7 +73,7 @@ module.exports = {
         }
 
         // Simpan data ke serverSettings.json
-        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+        saveSettings(settings);
 
         // Format Tanggal (MM/DD/YYYY h:mm AM/PM - persis seperti gambar)
         const now = new Date();
@@ -69,7 +89,7 @@ module.exports = {
                 `Warn Count: ${warnCount}\n` +
                 `Auto Punishment: ${autoPunishment}\n\n` +
                 `**USER**\n${target} | ${target.user.username}\n` +
-                `**STAFF**\n${message.author} | ${message.author.username}\n` +
+                `**STAFF**\n${staff} | ${staff.username}\n` +
                 `**REASON**\n${reason}\n\n` +
                 `CASE ID: ${caseId} | ${dateStr}`
             );
@@ -77,12 +97,12 @@ module.exports = {
         // Cari Channel Log (Pertama cek database logChannelId, jika tidak ada cari manual nama channelnya)
         let logChannel;
         if (settings[guildId].logChannelId) {
-            logChannel = message.guild.channels.cache.get(settings[guildId].logChannelId);
+            logChannel = guild.channels.cache.get(settings[guildId].logChannelId);
         }
         
         // Jika admin belum set channel log, bot akan otomatis mencari channel bernama "haven-moderation"
         if (!logChannel) {
-            logChannel = message.guild.channels.cache.find(c => c.name === 'haven-moderation' || c.name === 'mod-logs');
+            logChannel = guild.channels.cache.find(c => c.name === 'haven-moderation' || c.name === 'mod-logs');
         }
 
         // Kirim ke Channel Log
@@ -90,10 +110,13 @@ module.exports = {
             await logChannel.send({ embeds: [logEmbed] });
         }
 
-        // Kirim respon sukses ke channel tempat command dipakai dan hilangkan dalam 5 detik
-        const replyMsg = await message.reply(`✅ Successfully warned **${target.user.tag}**.`);
-        setTimeout(() => replyMsg.delete().catch(() => {}), 5000);
-        // Hapus juga pesan command dari staff agar rapi (opsional)
-        await message.delete().catch(() => {});
+        // Kirim respon sukses
+        if (isSlash) {
+            return ctx.reply({ content: `✅ Successfully warned **${target.user.tag}**.`, ephemeral: true });
+        } else {
+            const replyMsg = await ctx.reply(`✅ Successfully warned **${target.user.tag}**.`);
+            setTimeout(() => replyMsg.delete().catch(() => {}), 5000);
+            await ctx.delete().catch(() => {});
+        }
     }
 };

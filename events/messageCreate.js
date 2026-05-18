@@ -126,11 +126,12 @@ module.exports = {
             : false;
         const isCustomAdmin = guildSettings[guildId].authorizedUsers.includes(message.author.id);
 
-        // Trik: paksa .reply jadi channel.send untuk command prefix
-        message.reply = (content) => message.channel.send(content);
+        // Agar command prefix kirim pesan ke channel (bukan reply thread)
+        const prefixCtx = Object.create(message);
+        prefixCtx.reply = (content) => message.channel.send(content);
 
         try {
-            await command.executePrefix(message, args, SETTINGS_FILE, guildSettings, isRealAdmin, isCustomAdmin);
+            await command.executePrefix(prefixCtx, args, SETTINGS_FILE, guildSettings, isRealAdmin, isCustomAdmin);
         } catch (error) {
             console.error(error);
         }

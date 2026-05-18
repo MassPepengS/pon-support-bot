@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const fs = require('fs');
+const { saveSettings } = require('../../utils/database');
 
 module.exports = {
     name: 'access',
@@ -13,7 +13,7 @@ module.exports = {
             if (!target) return message.reply('❌ Please mention the user!');
             if (authUsers.includes(target.id)) return message.reply('ℹ️ User already has access.');
             authUsers.push(target.id);
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             return message.reply(`✅ Granted bot access to ${target}!`);
         }
         if (sub === 'rmv') {
@@ -21,7 +21,7 @@ module.exports = {
             if (!target) return message.reply('❌ Please mention the user!');
             authUsers = authUsers.filter(id => id !== target.id);
             settings[message.guild.id].authorizedUsers = authUsers;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             return message.reply(`✅ Revoked bot access from ${target}.`);
         }
         if (sub === 'list') {
@@ -39,14 +39,14 @@ module.exports = {
             const user = interaction.options.getUser('user');
             if (authUsers.includes(user.id)) return interaction.reply('ℹ️ User already has access.');
             authUsers.push(user.id);
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             return interaction.reply(`✅ Granted bot access to ${user}!`);
         }
         if (sub === 'rmv') {
             const user = interaction.options.getUser('user');
             authUsers = authUsers.filter(id => id !== user.id);
             settings[interaction.guild.id].authorizedUsers = authUsers;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+            saveSettings(settings);
             return interaction.reply(`✅ Revoked bot access from ${user}.`);
         }
         if (sub === 'list') {
