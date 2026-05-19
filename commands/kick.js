@@ -19,8 +19,16 @@ module.exports = {
     async executeAction(ctx, target, staff, reason, settings, SETTINGS_FILE) {
         try {
             await target.kick(reason);
-            const reply = `✅ **${target.user.tag}** kicked. Reason: ${reason}`;
-            if (ctx.commandName) await ctx.reply(reply); else await ctx.reply(reply);
+            const replyMsg = `✅ **${target.user.tag}** kicked. Reason: ${reason}`;
+            
+            // PESAN HILANG DALAM 5 DETIK
+            if (ctx.commandName) {
+                await ctx.reply({ content: replyMsg });
+                setTimeout(() => ctx.deleteReply().catch(()=>{}), 5000);
+            } else {
+                const msg = await ctx.reply(replyMsg);
+                setTimeout(() => msg.delete().catch(()=>{}), 5000);
+            }
 
             let logChannel = null;
             const logChanId = settings[ctx.guild.id]?.modLogChannelId;
@@ -28,7 +36,6 @@ module.exports = {
             else logChannel = ctx.guild.channels.cache.find(c => c.name.toLowerCase().includes('mod'));
 
             if (logChannel) {
-                // GENERATE CASE ID
                 let caseId = "000000";
                 try {
                     let db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
@@ -38,7 +45,6 @@ module.exports = {
                     caseId = db[ctx.guild.id].caseCount.toString().padStart(6, '0');
                 } catch (err) { caseId = "ERR" + Math.floor(Math.random() * 1000); }
 
-                // FORMAT EMBED
                 const embed = new EmbedBuilder()
                     .setColor('#E67E22')
                     .setAuthor({name: `Mod Action | ${target.user.username}`})

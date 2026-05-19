@@ -56,8 +56,15 @@ module.exports = {
             const muteRole = settings[ctx.guild.id]?.muteRoleId;
             if (muteRole) await target.roles.add(muteRole).catch(()=>{});
 
-            const reply = `✅ **${target.user.tag}** has been Muted for **${durationText}**. Reason: ${reason}`;
-            if (ctx.commandName) await ctx.reply(reply); else await ctx.reply(reply);
+            // PESAN HILANG DALAM 5 DETIK
+            const replyMsg = `✅ **${target.user.tag}** has been Muted for **${durationText}**. Reason: ${reason}`;
+            if (ctx.commandName) {
+                await ctx.reply({ content: replyMsg });
+                setTimeout(() => ctx.deleteReply().catch(()=>{}), 5000);
+            } else {
+                const msg = await ctx.reply(replyMsg);
+                setTimeout(() => msg.delete().catch(()=>{}), 5000);
+            }
 
             let logChannel = null;
             const logChanId = settings[ctx.guild.id]?.modLogChannelId;
@@ -65,7 +72,6 @@ module.exports = {
             else logChannel = ctx.guild.channels.cache.find(c => c.name.toLowerCase().includes('mod'));
 
             if (logChannel) {
-                // GENERATE CASE ID
                 let caseId = "000000";
                 try {
                     let db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
@@ -75,7 +81,6 @@ module.exports = {
                     caseId = db[ctx.guild.id].caseCount.toString().padStart(6, '0');
                 } catch (err) { caseId = "ERR" + Math.floor(Math.random() * 1000); }
 
-                // FORMAT EMBED SAMA SEPERTI AUTOMOD
                 const embed = new EmbedBuilder()
                     .setColor('#ED4245')
                     .setAuthor({name: `Mod Action | ${target.user.username}`})

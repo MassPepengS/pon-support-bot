@@ -34,7 +34,14 @@ module.exports = {
             replyMsg += `\n🚨 **3 Warns Reached!** User has been auto-muted for 1 Day.`;
         }
 
-        if (ctx.commandName) await ctx.reply(replyMsg); else await ctx.reply(replyMsg);
+        // PESAN HILANG DALAM 5 DETIK
+        if (ctx.commandName) {
+            await ctx.reply({ content: replyMsg });
+            setTimeout(() => ctx.deleteReply().catch(()=>{}), 5000);
+        } else {
+            const msg = await ctx.reply(replyMsg);
+            setTimeout(() => msg.delete().catch(()=>{}), 5000);
+        }
 
         let logChannel = null;
         const logChanId = settings[guildId]?.modLogChannelId;
@@ -42,7 +49,6 @@ module.exports = {
         else logChannel = ctx.guild.channels.cache.find(c => c.name.toLowerCase().includes('mod'));
 
         if (logChannel) {
-            // GENERATE CASE ID
             let caseId = "000000";
             try {
                 let db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
@@ -51,7 +57,6 @@ module.exports = {
                 caseId = db[guildId].caseCount.toString().padStart(6, '0');
             } catch (err) { caseId = "ERR" + Math.floor(Math.random() * 1000); }
 
-            // FORMAT EMBED
             const embed = new EmbedBuilder()
                 .setColor('#FEE75C')
                 .setAuthor({name: `Mod Action | ${target.user.username}`})
