@@ -54,7 +54,7 @@ function checkDatabase(guildId) {
     let changed = false;
 
     if (!settings[guildId] || typeof settings[guildId] === 'string') {
-        settings[guildId] = { channelId: null, gifs: [], authorizedUsers: [], logChannelId: null, suggestionChannelId: null, modLogChannelId: null, badWords: [], caseCount: 0, warns: {}, linkAllowedChannels: [] };
+        settings[guildId] = { channelId: null, gifs: [], authorizedUsers: [], logChannelId: null, suggestionChannelId: null, modLogChannelId: null, muteRoleId: null, badWords: [], caseCount: 0, warns: {}, linkAllowedChannels: [] };
         changed = true;
     }
     if (!settings[guildId].badWords) { settings[guildId].badWords = []; changed = true; }
@@ -217,7 +217,8 @@ client.on('interactionCreate', async interaction => {
                     .setDescription('Tools to keep your outpost safe and clean from violations:')
                     .addFields(
                         { name: '📝 Word Filter System', value: `\`${p} word add [word]\` - Add a word to the filter list.\n\`${p} word rmv [word]\` - Remove a word from the filter.\n\`${p} word list\` - View all filtered words.` },
-                        { name: '🔗 Link Control System', value: `\`${p} link allow [#channel]\` - Allow links in a channel.\n\`${p} link block [#channel]\` - Block links back.\n\`${p} link list\` - View allowed link channels.` }
+                        { name: '🔗 Link Control System', value: `\`${p} link allow [#channel]\` - Allow links in a channel.\n\`${p} link block [#channel]\` - Block links back.\n\`${p} link list\` - View allowed link channels.` },
+                        { name: '🔨 Action Commands', value: `\`${p} warn [@user] [reason]\` - Warn player (3x = Auto Mute 1D)\n\`${p} mute [@user] [time] [reason]\` - Mute player (e.g., 1d, 12h, 30m, 10s)\n\`${p} kick [@user] [reason]\` - Kick player\n\`${p} ban [@user] [reason]\` - Ban player\n\`${p} set mute [@role]\` - Set restricted role for muted players` }
                     )
                     .setFooter({ text: 'Category: Moderation (Admin Only)' });
                 break;
@@ -231,7 +232,15 @@ client.on('interactionCreate', async interaction => {
                 embed.setColor('#2F3136').setTitle(`${getEmoji(emojis.help_management, '🧱')} CH MANAGEMENT & WELCOME SETUP`).setDescription('Configuration commands to control, structure channels, setup greetings, and logs:').addFields({ name: '🧱 Channel & Role Management', value: `\`${p} crt cha [name]\` - Create text channel.\n\`${p} crt cat [name]\` - Create category folder.\n\`${p} crt role [hex] [name]\` - Create custom colored role.\n\`${p} rmv [cha/cat/role]\` - Delete channel/category/role.\n\`${p} rmv msg [amount]\` - Clear chat messages.\n\`${p} lock / unlock [channel]\` - Toggle channel locks.\n\`${p} slowmode [channel] [seconds]\` - Set slowmode cooldown.` },{ name: '👋 Welcome Greeting Configurations', value: `\`${p} set wcm [#channel]\` - Set target welcome channel.\n\`${p} wcm gif [imgur_link]\` - Pool custom background Imgur GIF.\n\`${p} wcm list\` - View registered welcome GIFs.\n\`${p} wcm rmv [num]\` - Remove custom GIF from database.` },{ name: '📝 Ticket & Suggestion Logs', value: `\`${p} set log [#channel]\` - Set archive log channel for closed tickets.\n\`${p} set sug [#channel]\` - Set community suggestion channel.\n\`${p} suggestion\` - Deploy Suggestion Embed Panel.` }).setFooter({ text: 'Category: Management & Welcome (Admin Only)' });
                 break;
             case 'help_support':
-                embed.setColor('#2F3136').setTitle(`${getEmoji(emojis.help_support, '🛠️')} SUPPORT & UTILITIES PANEL`).setDescription('Core configuration tools for advanced bot access modules:').addFields({ name: `\`${p} access add / rmv [@user]\``, value: 'Grant or revoke custom admin permissions to run bot commands.' },{ name: `\`${p} access list\``, value: 'Display all authorized custom bot administrators.' }).setFooter({ text: 'Category: Support & Utilities (Admin Only)' });
+                embed.setColor('#2F3136')
+                    .setTitle(`${getEmoji(emojis.help_support, '🛠️')} SUPPORT & UTILITIES PANEL`)
+                    .setDescription('Core configuration tools for advanced bot access modules:')
+                    .addFields(
+                        { name: `\`${p} access add / rmv [@user]\``, value: 'Grant or revoke custom admin permissions to run bot commands.' },
+                        { name: `\`${p} access list\``, value: 'Display all authorized custom bot administrators.' },
+                        { name: '📌 Help Panel Shortcuts', value: `\`${p} help gen\` - Open General panel\n\`${p} help pro\` - Open Profile panel\n\`${p} help cha\` - Open Management panel\n\`${p} help mod\` - Open Moderation panel\n\`${p} help sup\` - Open Support panel` }
+                    )
+                    .setFooter({ text: 'Category: Support & Utilities (Admin Only)' });
                 break;
         }
         await interaction.update({ embeds: [embed] }).catch(()=>{});
@@ -252,129 +261,134 @@ client.on('interactionCreate', async interaction => {
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
-    const guildId = message.guild.id;
-    const settings = checkDatabase(guildId);
-    const contentLower = message.content.toLowerCase();
-    const contentRaw = message.content;
+    try {
+        const guildId = message.guild.id;
+        const settings = checkDatabase(guildId);
+        const contentLower = message.content.toLowerCase();
+        const contentRaw = message.content;
 
-    const badWords = settings[guildId].badWords || [];
-    const allowedLinkChannels = settings[guildId].linkAllowedChannels || [];
-    const isLinkAllowedChannel = allowedLinkChannels.includes(message.channel.id);
-    const isCommand = contentLower.startsWith(`${PREFIX.toLowerCase()} `);
-    let isViolating = false;
+        const badWords = settings[guildId].badWords || [];
+        const allowedLinkChannels = settings[guildId].linkAllowedChannels || [];
+        const isLinkAllowedChannel = allowedLinkChannels.includes(message.channel.id);
+        const isCommand = contentLower.startsWith(`${PREFIX.toLowerCase()} `);
+        let isViolating = false;
 
-    // FUNGSI PENGIRIM LOG (TAHAN BANTING - ANTI REJECT DISCORD)
-    const sendAutoModLog = async (reason, originalContent) => {
-        try {
-            let logChannelId = settings[guildId].modLogChannelId;
-            let logChannel = null;
-            if (logChannelId) {
-                logChannel = message.guild.channels.cache.get(logChannelId) || await message.guild.channels.fetch(logChannelId).catch(()=>null);
-            } else {
-                logChannel = message.guild.channels.cache.find(c => c.name.includes('mod'));
-            }
-            
-            if (!logChannel) return;
-
-            let caseId = "000000";
+        const sendAutoModLog = async (reason, originalContent) => {
             try {
-                let db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-                if (!db[guildId]) db[guildId] = {};
-                db[guildId].caseCount = (db[guildId].caseCount || 0) + 1;
-                fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
-                caseId = db[guildId].caseCount.toString().padStart(6, '0');
-            } catch (err) {
-                caseId = "ERR" + Math.floor(Math.random() * 1000);
+                let logChannelId = settings[guildId].modLogChannelId;
+                let logChannel = null;
+                if (logChannelId) {
+                    logChannel = message.guild.channels.cache.get(logChannelId) || await message.guild.channels.fetch(logChannelId).catch(()=>null);
+                } else {
+                    logChannel = message.guild.channels.cache.find(c => c.name.includes('mod'));
+                }
+
+                if (!logChannel) return;
+
+                let caseId = "000000";
+                try {
+                    let db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+                    if (!db[guildId]) db[guildId] = {};
+                    db[guildId].caseCount = (db[guildId].caseCount || 0) + 1;
+                    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
+                    caseId = db[guildId].caseCount.toString().padStart(6, '0');
+                } catch (err) {
+                    caseId = "ERR" + Math.floor(Math.random() * 1000);
+                }
+
+                const safeContent = originalContent.length > 1000 ? originalContent.substring(0, 1000) + "..." : originalContent;
+
+                const logEmbed = new EmbedBuilder()
+                    .setColor('#ED4245')
+                    .setAuthor({ name: `AutoMod | ${message.author.username}` })
+                    .setDescription(`**USER**\n<@${message.author.id}> | ${message.author.username}\n**STAFF**\nAutoMod\n**REASON**\n${reason}\n**MESSAGE CONTENT**\n${safeContent}\n\n**CASE ID:** ${caseId}`)
+                    .setTimestamp();
+
+                await logChannel.send({ embeds: [logEmbed] }).catch(async () => {
+                    await logChannel.send(`🚨 **AUTOMOD LOG (Fallback)** 🚨\nUser: <@${message.author.id}>\nReason: ${reason}\nCase: ${caseId}\nContent: ${safeContent}`);
+                });
+            } catch (error) {
+                console.error("Gagal mengirim log:", error);
             }
-            
-            const safeContent = originalContent.length > 1000 ? originalContent.substring(0, 1000) + "..." : originalContent;
-            
-            const logEmbed = new EmbedBuilder()
-                .setColor('#ED4245')
-                .setAuthor({ name: `AutoMod | ${message.author.username}` }) 
-                .setDescription(`**USER**\n<@${message.author.id}> | ${message.author.username}\n**STAFF**\nAutoMod\n**REASON**\n${reason}\n**MESSAGE CONTENT**\n${safeContent}\n\n**CASE ID:** ${caseId}`)
-                .setTimestamp();
-            
-            // JIKA DISCORD MENOLAK EMBED, KIRIM TEKS BIASA SEBAGAI CADANGAN!
-            await logChannel.send({ embeds: [logEmbed] }).catch(async (e) => {
-                await logChannel.send(`🚨 **AUTOMOD LOG (Fallback)** 🚨\nUser: <@${message.author.id}>\nReason: ${reason}\nCase: ${caseId}\nContent: ${safeContent}`);
+        };
+
+        const hasAdminPerm = message.member?.permissions?.has(PermissionFlagsBits.ManageMessages) || false;
+
+        if (!isCommand && badWords.length > 0) {
+            const safeWords = badWords.map(w => w.trim().toLowerCase()).filter(w => w !== '');
+            const hasBadWord = safeWords.some(word => contentLower.includes(word));
+            if (hasBadWord) {
+                isViolating = true;
+                message.delete().catch(()=>{});
+                sendAutoModLog('Triggered Word Filter', contentRaw);
+                message.channel.send(`⚠️ <@${message.author.id}>, Please, mind your language!`)
+                    .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
+            }
+        }
+
+        const linkRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|discord\.gg\/[^\s]+)/gi;
+        if (!isViolating && !isCommand && !isLinkAllowedChannel && linkRegex.test(contentLower) && !hasAdminPerm) {
+            isViolating = true;
+            message.delete().catch(()=>{});
+            sendAutoModLog('Posted a Link', contentRaw);
+            message.channel.send(`🔗 <@${message.author.id}>, sending links is not allowed in this channel!`)
+                .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
+        }
+
+        if (!isViolating && !isCommand && contentRaw.length > 15 && !hasAdminPerm) {
+            const capsCount = contentRaw.replace(/[^A-Z]/g, '').length;
+            if ((capsCount / contentRaw.length) * 100 > 70) {
+                isViolating = true;
+                message.delete().catch(()=>{});
+                sendAutoModLog('Excessive Caps Lock', contentRaw);
+                message.channel.send(`🔠 <@${message.author.id}>, please turn off your Caps Lock!`)
+                    .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
+            }
+        }
+
+        if (isViolating) return;
+
+        let afkData = {};
+        try { afkData = JSON.parse(fs.readFileSync(AFK_FILE, 'utf8')); } catch (e) {}
+        let afkChanged = false;
+
+        if (afkData[guildId] && afkData[guildId][message.author.id]) {
+            delete afkData[guildId][message.author.id];
+            afkChanged = true;
+            message.channel.send(`👋 Welcome back **<@${message.author.id}>**, I removed your AFK.`).then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000));
+        }
+
+        if (message.mentions.users.size > 0 && afkData[guildId]) {
+            message.mentions.users.forEach(user => {
+                if (afkData[guildId][user.id]) {
+                    const afkInfo = afkData[guildId][user.id];
+                    const timeAgo = Math.floor(afkInfo.timestamp / 1000);
+                    message.channel.send(`💤 **${user.username}** is AFK: ${afkInfo.reason} *(since <t:${timeAgo}:R>)*`);
+                }
             });
-        } catch (error) {
-            console.error("Gagal mengirim log:", error);
         }
-    };
 
-    if (!isCommand && badWords.length > 0) {
-        const safeWords = badWords.map(w => w.trim().toLowerCase()).filter(w => w !== '');
-        const hasBadWord = safeWords.some(word => contentLower.includes(word));
-        if (hasBadWord) {
-            isViolating = true;
-            await sendAutoModLog('Triggered Word Filter', contentRaw); 
-            await message.delete().catch(()=>{}); 
-            message.channel.send(`⚠️ <@${message.author.id}>, Please, mind your language!`)
-                .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
-        }
+        if (afkChanged) fs.writeFileSync(AFK_FILE, JSON.stringify(afkData, null, 2));
+
+        if (!contentLower.startsWith(PREFIX.toLowerCase())) return;
+        const args = contentRaw.slice(PREFIX.length).trim().split(/\s+/);
+        if (args.length === 0) return;
+
+        const commandName = args.shift().toLowerCase();
+        const command = client.commands.get(commandName);
+        if (!command) return;
+
+        const isRealAdmin = message.member?.permissions?.has(PermissionFlagsBits.ManageGuild) || false;
+        const isCustomAdmin = settings[guildId].authorizedUsers.includes(message.author.id);
+
+        message.reply = (content) => message.channel.send(content);
+
+        try { await command.executePrefix(message, args, SETTINGS_FILE, settings, isRealAdmin, isCustomAdmin); }
+        catch (error) { console.error(error); }
+
+    } catch (error) {
+        console.error("Critical Message Event Error:", error);
     }
-
-    const linkRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|discord\.gg\/[^\s]+)/gi;
-    if (!isViolating && !isCommand && !isLinkAllowedChannel && linkRegex.test(contentLower) && !message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-        isViolating = true;
-        await sendAutoModLog('Posted a Link', contentRaw); 
-        await message.delete().catch(()=>{}); 
-        message.channel.send(`🔗 <@${message.author.id}>, sending links is not allowed in this channel!`)
-            .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
-    }
-
-    if (!isViolating && !isCommand && contentRaw.length > 15 && !message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-        const capsCount = contentRaw.replace(/[^A-Z]/g, '').length;
-        if ((capsCount / contentRaw.length) * 100 > 70) {
-            isViolating = true;
-            await sendAutoModLog('Excessive Caps Lock', contentRaw);
-            await message.delete().catch(()=>{});
-            message.channel.send(`🔠 <@${message.author.id}>, please turn off your Caps Lock!`)
-                .then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000)).catch(()=>{});
-        }
-    }
-
-    if (isViolating) return;
-
-    let afkData = {};
-    try { afkData = JSON.parse(fs.readFileSync(AFK_FILE, 'utf8')); } catch (e) {}
-    let afkChanged = false;
-
-    if (afkData[guildId] && afkData[guildId][message.author.id]) {
-        delete afkData[guildId][message.author.id];
-        afkChanged = true;
-        message.channel.send(`👋 Welcome back **${message.member.displayName}**, I removed your AFK.`).then(msg => setTimeout(() => msg.delete().catch(()=>{}), 5000));
-    }
-
-    if (message.mentions.users.size > 0 && afkData[guildId]) {
-        message.mentions.users.forEach(user => {
-            if (afkData[guildId][user.id]) {
-                const afkInfo = afkData[guildId][user.id];
-                const timeAgo = Math.floor(afkInfo.timestamp / 1000);
-                message.channel.send(`💤 **${user.username}** is AFK: ${afkInfo.reason} *(since <t:${timeAgo}:R>)*`);
-            }
-        });
-    }
-
-    if (afkChanged) fs.writeFileSync(AFK_FILE, JSON.stringify(afkData, null, 2));
-
-    if (!contentLower.startsWith(PREFIX.toLowerCase())) return;
-    const args = contentRaw.slice(PREFIX.length).trim().split(/\s+/);
-    if (args.length === 0) return;
-
-    const commandName = args.shift().toLowerCase();
-    const command = client.commands.get(commandName);
-    if (!command) return;
-
-    const isRealAdmin = message.member ? message.member.permissions.has(PermissionFlagsBits.ManageGuild) : false;
-    const isCustomAdmin = settings[guildId].authorizedUsers.includes(message.author.id);
-
-    message.reply = (content) => message.channel.send(content);
-
-    try { await command.executePrefix(message, args, SETTINGS_FILE, settings, isRealAdmin, isCustomAdmin); }
-    catch (error) { console.error(error); }
 });
 
 client.login(process.env.TOKEN);
