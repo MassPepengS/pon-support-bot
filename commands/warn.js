@@ -18,10 +18,19 @@ module.exports = {
     },
     async executeAction(ctx, target, staff, reason, settings, SETTINGS_FILE) {
         const guildId = ctx.guild.id;
-        let userWarns = settings[guildId].warns[target.id] || 0;
+
+        // BACA ULANG DATABASE AGAR 100% AKURAT DAN AMAN (SUPER BAJA)
+        let db = {};
+        try { db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch (e) { db = {}; }
+        if (!db[guildId]) db[guildId] = {};
+        if (!db[guildId].warns) db[guildId].warns = {}; // Otomatis buat laci warns
+
+        let userWarns = db[guildId].warns[target.id] || 0;
         userWarns += 1;
-        settings[guildId].warns[target.id] = userWarns;
-        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+        db[guildId].warns[target.id] = userWarns;
+        
+        // Simpan database dengan data terbaru
+        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
 
         let replyMsg = `✅ **${target.user.tag}** warned (Warn ${userWarns}/3). Reason: ${reason}`;
         let autoMuted = false;
@@ -29,7 +38,7 @@ module.exports = {
         if (userWarns % 3 === 0) {
             autoMuted = true;
             await target.timeout(24 * 60 * 60 * 1000, 'Auto-Mute: Reached 3 warnings').catch(()=>{});
-            const muteRole = settings[guildId].muteRoleId;
+            const muteRole = db[guildId].muteRoleId || settings[guildId]?.muteRoleId;
             if (muteRole) await target.roles.add(muteRole).catch(()=>{});
             replyMsg += `\n🚨 **3 Warns Reached!** User has been auto-muted for 1 Day.`;
         }
@@ -43,19 +52,16 @@ module.exports = {
             setTimeout(() => msg.delete().catch(()=>{}), 5000);
         }
 
+        // KIRIM LOG MODERASI
         let logChannel = null;
-        const logChanId = settings[guildId]?.modLogChannelId;
+        const logChanId = db[guildId]?.modLogChannelId || settings[guildId]?.modLogChannelId;
         if (logChanId) logChannel = ctx.guild.channels.cache.get(logChanId) || await ctx.guild.channels.fetch(logChanId).catch(() => null);
         else logChannel = ctx.guild.channels.cache.find(c => c.name.toLowerCase().includes('mod'));
 
         if (logChannel) {
-            let caseId = "000000";
-            try {
-                let db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-                db[guildId].caseCount = (db[guildId].caseCount || 0) + 1;
-                fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
-                caseId = db[guildId].caseCount.toString().padStart(6, '0');
-            } catch (err) { caseId = "ERR" + Math.floor(Math.random() * 1000); }
+            db[guildId].caseCount = (db[guildId].caseCount || 0) + 1;
+            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
+            const caseId = db[guildId].caseCount.toString().padStart(6, '0');
 
             const embed = new EmbedBuilder()
                 .setColor('#FEE75C')
