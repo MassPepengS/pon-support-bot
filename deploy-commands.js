@@ -13,6 +13,11 @@ const commands = [
     new SlashCommandBuilder().setName('ban').setDescription('Ban a player')
         .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
         .addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(false)),
+
+    new SlashCommandBuilder().setName('tempban').setDescription('Temporarily ban a player')
+        .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
+        .addStringOption(opt => opt.setName('duration').setDescription('Time format: 1d, 12h, 30m, 60s').setRequired(true))
+        .addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(false)),
         
     new SlashCommandBuilder().setName('unban').setDescription('Unban a player using their ID')
         .addStringOption(opt => opt.setName('userid').setDescription('The User ID to unban').setRequired(true))
