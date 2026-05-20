@@ -14,7 +14,6 @@ const commands = [
         .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
         .addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(false)),
         
-    // === INI COMMAND UNBAN YANG BARU DITAMBAHKAN ===
     new SlashCommandBuilder().setName('unban').setDescription('Unban a player using their ID')
         .addStringOption(opt => opt.setName('userid').setDescription('The User ID to unban').setRequired(true))
         .addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(false)),
@@ -22,10 +21,23 @@ const commands = [
     new SlashCommandBuilder().setName('warn').setDescription('Warn a player (3x = Auto Mute 1 Day)')
         .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
         .addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(false)),
+
+    new SlashCommandBuilder().setName('unwarn').setDescription('Remove a warning from a player')
+        .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
+        .addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(false)),
+        
+    // === COMMAND CLEARWARN BARU ===
+    new SlashCommandBuilder().setName('clearwarn').setDescription('Reset all warnings to 0 & lift auto-mute')
+        .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
+        .addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(false)),
         
     new SlashCommandBuilder().setName('mute').setDescription('Mute a player')
         .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
         .addStringOption(opt => opt.setName('duration').setDescription('Time format: 1d, 12h, 30m, 60s').setRequired(true))
+        .addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(false)),
+
+    new SlashCommandBuilder().setName('unmute').setDescription('Unmute a player')
+        .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
         .addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(false)),
 
     new SlashCommandBuilder().setName('afk').setDescription('Set your status to AFK')
@@ -75,3 +87,4 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
         console.log('Successfully reloaded application (/) commands INSTANTLY!');
     } catch (error) { console.error(error); }
 })();
+

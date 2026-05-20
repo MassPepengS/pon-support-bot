@@ -43,14 +43,11 @@ module.exports = {
             return message.reply({ embeds: [embed] });
         }
 
-        // ==========================================
-        // UPDATE: PANEL MODERASI (PREFIX) - Mute, Unban, Unwarn, Unmute
-        // ==========================================
         if (sub === 'mod' || sub === 'moderation') {
             embed.setColor('#2F3136').setTitle(`${getEmoji(emojis.help_moderation, '🛡️')} MODERATION PANEL`).setDescription('Tools to keep your outpost safe and clean from violations:').addFields(
                 { name: '📝 Word Filter System', value: `\`${p} word add [word]\` - Add a word to the filter list.\n\`${p} word rmv [word]\` - Remove a word from the filter.\n\`${p} word list\` - View all filtered words.` },
                 { name: '🔗 Link Control System', value: `\`${p} link allow [#channel]\` - Allow links in a channel.\n\`${p} link block [#channel]\` - Block links back.\n\`${p} link list\` - View allowed link channels.` },
-                { name: '🔨 Action Commands', value: `\`${p} warn / unwarn [@user]\` - Add or remove warning\n\`${p} mute / unmute [@user]\` - Mute or unmute player\n\`${p} kick [@user] [reason]\` - Kick player\n\`${p} ban [@user] [reason]\` - Ban player\n\`${p} unban [user_id]\` - Unban player by ID\n\`${p} set mute [@role]\` - Set restricted role` }
+                { name: '🔨 Action Commands', value: `\`${p} warn / unwarn [@user]\` - Add/remove warning\n\`${p} clearwarn [@user]\` - Reset warns (0/3) & lift auto-mute\n\`${p} mute / unmute [@user]\` - Mute/unmute player\n\`${p} kick [@user] [reason]\` - Kick player\n\`${p} ban [@user] [reason]\` - Ban player\n\`${p} unban [user_id]\` - Unban player by ID\n\`${p} set mute [@role]\` - Set restricted role` }
             ).setFooter({ text: 'Category: Moderation (Admin Only)' });
             return message.reply({ embeds: [embed] });
         }
@@ -130,14 +127,11 @@ module.exports = {
             return interaction.reply({ embeds: [embed] });
         }
 
-        // ==========================================
-        // UPDATE: PANEL MODERASI (SLASH) - Mute, Unban, Unwarn, Unmute
-        // ==========================================
         if (sub === 'mod' || sub === 'moderation') {
             embed.setColor('#2F3136').setTitle(`${getEmoji(emojis.help_moderation, '🛡️')} MODERATION PANEL`).setDescription('Tools to keep your outpost safe and clean from violations:').addFields(
                 { name: '📝 Word Filter System', value: `\`${p}word add [word]\` - Add a word to the filter list.\n\`${p}word rmv [word]\` - Remove a word from the filter.\n\`${p}word list\` - View all filtered words.` },
                 { name: '🔗 Link Control System', value: `\`${p}link allow [#channel]\` - Allow links in a channel.\n\`${p}link block [#channel]\` - Block links back.\n\`${p}link list\` - View allowed link channels.` },
-                { name: '🔨 Action Commands', value: `\`${p}warn / unwarn [@user]\` - Add or remove warning\n\`${p}mute / unmute [@user]\` - Mute or unmute player\n\`${p}kick [@user] [reason]\` - Kick player\n\`${p}ban [@user] [reason]\` - Ban player\n\`${p}unban [user_id]\` - Unban player by ID\n\`${p}set mute [@role]\` - Set restricted role` }
+                { name: '🔨 Action Commands', value: `\`${p}warn / unwarn [@user]\` - Add/remove warning\n\`${p}clearwarn [@user]\` - Reset warns (0/3) & lift auto-mute\n\`${p}mute / unmute [@user]\` - Mute/unmute player\n\`${p}kick [@user] [reason]\` - Kick player\n\`${p}ban [@user] [reason]\` - Ban player\n\`${p}unban [user_id]\` - Unban player by ID\n\`${p}set mute [@role]\` - Set restricted role` }
             ).setFooter({ text: 'Category: Moderation (Admin Only)' });
             return interaction.reply({ embeds: [embed] });
         }

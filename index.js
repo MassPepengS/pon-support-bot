@@ -76,9 +76,6 @@ client.on('guildMemberAdd', async member => {
 });
 
 client.on('interactionCreate', async interaction => {
-    // ==========================================
-    // FITUR TICKET (TIDAK ADA YANG DIUBAH)
-    // ==========================================
     if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
         const reason = interaction.values[0];
         const member = interaction.member;
@@ -138,9 +135,6 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // ==========================================
-    // FITUR SUGGESTION (TIDAK ADA YANG DIUBAH)
-    // ==========================================
     if (interaction.isButton() && interaction.customId === 'create_suggestion') {
         const modal = new ModalBuilder().setCustomId('suggestion_modal').setTitle('Submit a Suggestion');
         const suggestionInput = new TextInputBuilder().setCustomId('suggestion_text').setLabel("What is your idea?").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1000);
@@ -184,9 +178,6 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // ==========================================
-    // MENU HELP DROPDOWN (DIUBAH HANYA BAGIAN TEKS MODERASI)
-    // ==========================================
     if (interaction.isStringSelectMenu() && interaction.customId === 'help_menu') {
         const selection = interaction.values[0];
         const embed = new EmbedBuilder().setTimestamp();
@@ -227,7 +218,7 @@ client.on('interactionCreate', async interaction => {
                     .addFields(
                         { name: '📝 Word Filter System', value: `\`${p} word add [word]\` - Add a word to the filter list.\n\`${p} word rmv [word]\` - Remove a word from the filter.\n\`${p} word list\` - View all filtered words.` },
                         { name: '🔗 Link Control System', value: `\`${p} link allow [#channel]\` - Allow links in a channel.\n\`${p} link block [#channel]\` - Block links back.\n\`${p} link list\` - View allowed link channels.` },
-                        { name: '🔨 Action Commands', value: `\`${p} warn / unwarn [@user]\` - Add or remove warning\n\`${p} mute / unmute [@user]\` - Mute or unmute player\n\`${p} kick [@user] [reason]\` - Kick player\n\`${p} ban [@user] [reason]\` - Ban player\n\`${p} unban [user_id]\` - Unban player by ID\n\`${p} set mute [@role]\` - Set restricted role` }
+                        { name: '🔨 Action Commands', value: `\`${p} warn / unwarn [@user]\` - Add/remove warning\n\`${p} clearwarn [@user]\` - Reset warns (0/3) & lift auto-mute\n\`${p} mute / unmute [@user]\` - Mute/unmute player\n\`${p} kick [@user] [reason]\` - Kick player\n\`${p} ban [@user] [reason]\` - Ban player\n\`${p} unban [user_id]\` - Unban player by ID\n\`${p} set mute [@role]\` - Set restricted role` }
                     )
                     .setFooter({ text: 'Category: Moderation (Admin Only)' });
                 break;
