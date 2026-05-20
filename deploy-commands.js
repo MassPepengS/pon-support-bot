@@ -26,10 +26,12 @@ const commands = [
         .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
         .addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(false)),
         
-    // === COMMAND CLEARWARN BARU ===
     new SlashCommandBuilder().setName('clearwarn').setDescription('Reset all warnings to 0 & lift auto-mute')
         .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
         .addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(false)),
+        
+    new SlashCommandBuilder().setName('history').setDescription('Lookup moderation history of a user')
+        .addUserOption(opt => opt.setName('user').setDescription('Select user to lookup').setRequired(false)),
         
     new SlashCommandBuilder().setName('mute').setDescription('Mute a player')
         .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
@@ -87,4 +89,3 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
         console.log('Successfully reloaded application (/) commands INSTANTLY!');
     } catch (error) { console.error(error); }
 })();
-
