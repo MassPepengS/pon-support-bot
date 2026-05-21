@@ -6,6 +6,14 @@ const commands = [
         .addStringOption(option => option.setName('category').setDescription('Directly open a specific category').setRequired(false)
             .addChoices({ name: 'General', value: 'gen' }, { name: 'Profile', value: 'pro' }, { name: 'Management', value: 'cha' }, { name: 'Moderation', value: 'mod' }, { name: 'Support', value: 'sup' })),
 
+    // === GENERAL COMMANDS ===
+    new SlashCommandBuilder().setName('avatar').setDescription('Display a user\'s avatar')
+        .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(false)),
+    new SlashCommandBuilder().setName('meme').setDescription('Get a random fresh meme from Reddit'),
+    new SlashCommandBuilder().setName('dog').setDescription('Summon a random cute dog image'),
+    new SlashCommandBuilder().setName('cat').setDescription('Summon a random cute cat image'),
+
+    // === MODERATION COMMANDS ===
     new SlashCommandBuilder().setName('kick').setDescription('Kick a player')
         .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
         .addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(false)),
@@ -38,7 +46,6 @@ const commands = [
     new SlashCommandBuilder().setName('history').setDescription('Lookup moderation history of a user')
         .addUserOption(opt => opt.setName('user').setDescription('Select user to lookup').setRequired(false)),
 
-    // === ADVANCED PURGE COMMAND ===
     new SlashCommandBuilder().setName('purge').setDescription('Advanced purge messages with options')
         .addIntegerOption(opt => opt.setName('amount').setDescription('Amount of messages to delete').setRequired(true).setMinValue(1).setMaxValue(100))
         .addUserOption(opt => opt.setName('user').setDescription('Filter by specific user').setRequired(false))
@@ -54,6 +61,7 @@ const commands = [
         .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
         .addStringOption(opt => opt.setName('reason').setDescription('Reason').setRequired(false)),
 
+    // === MANAGEMENT & UTILITIES ===
     new SlashCommandBuilder().setName('afk').setDescription('Set your status to AFK')
         .addStringOption(opt => opt.setName('reason').setDescription('Reason for being AFK').setRequired(false)),
         

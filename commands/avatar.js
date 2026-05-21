@@ -11,8 +11,8 @@ module.exports = {
 
     async sendAvatar(ctx, type) {
         // Mendapatkan user yang di-mention atau pengirim pesan
-        const user = type === 'SLASH' 
-            ? ctx.options.getUser('user') || ctx.user 
+        const user = type === 'SLASH'
+            ? ctx.options.getUser('user') || ctx.user
             : (ctx.mentions.users.first() || ctx.author);
 
         const embed = new EmbedBuilder()
