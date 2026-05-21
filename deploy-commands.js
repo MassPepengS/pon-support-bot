@@ -37,6 +37,13 @@ const commands = [
         
     new SlashCommandBuilder().setName('history').setDescription('Lookup moderation history of a user')
         .addUserOption(opt => opt.setName('user').setDescription('Select user to lookup').setRequired(false)),
+
+    // === ADVANCED PURGE COMMAND ===
+    new SlashCommandBuilder().setName('purge').setDescription('Advanced purge messages with options')
+        .addIntegerOption(opt => opt.setName('amount').setDescription('Amount of messages to delete').setRequired(true).setMinValue(1).setMaxValue(100))
+        .addUserOption(opt => opt.setName('user').setDescription('Filter by specific user').setRequired(false))
+        .addStringOption(opt => opt.setName('filter').setDescription('Filter by message type').setRequired(false)
+            .addChoices({ name: 'Links Only', value: 'links' })),
         
     new SlashCommandBuilder().setName('mute').setDescription('Mute a player')
         .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(true))
