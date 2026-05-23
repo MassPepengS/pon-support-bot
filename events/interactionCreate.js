@@ -5,6 +5,56 @@ const path = require('path');
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction, client) {
+        
+        // --- VERIFICATION SYSTEM (CAPTCHA) ---
+        if (interaction.isButton() && interaction.customId === 'verify_button') {
+            const member = interaction.member;
+            const guild = interaction.guild;
+            
+            try {
+                // Cek apakah pemain sudah punya saluran verifikasi aktif
+                const existingChannel = guild.channels.cache.find(c => c.topic === member.id && c.name.startsWith('verify-'));
+                if (existingChannel) return interaction.reply({ content: `❌ You already have an active verification channel: ${existingChannel}`, ephemeral: true });
+
+                const verifyChannel = await guild.channels.create({
+                    name: `verify-${member.user.username}`,
+                    type: ChannelType.GuildText,
+                    topic: member.id, // Menyimpan User ID di deskripsi saluran
+                    permissionOverwrites: [
+                        { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                        { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+                        { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ReadMessageHistory] }
+                    ]
+                });
+
+                await interaction.reply({ content: `✅ Verification channel created! Head over to ${verifyChannel}`, ephemeral: true });
+
+                // Membuat generator kode acak 6 karakter (angka & huruf besar/kecil)
+                if (!client.captchaCodes) client.captchaCodes = new Map();
+                
+                const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                let code = '';
+                for (let i = 0; i < 6; i++) {
+                    code += characters.charAt(Math.floor(Math.random() * characters.length));
+                }
+                client.captchaCodes.set(member.id, code);
+
+                const imageUrl = `https://dummyimage.com/300x100/2F3136/ffffff.png&text=${code}`;
+
+                const embed = new EmbedBuilder()
+                    .setColor('#2F3136')
+                    .setTitle('🛡️ SECURITY VERIFICATION')
+                    .setDescription(`Welcome <@${member.id}>!\n\nTo prove you are human and gain full access to the outpost, please type the **6-character code** shown in the image below.\n\n-# Note: The code is case-sensitive`)
+                    .setImage(imageUrl);
+
+                await verifyChannel.send({ content: `<@${member.id}>`, embeds: [embed] });
+            } catch (err) {
+                console.error(err);
+                await interaction.reply({ content: '❌ Failed to create verification channel!', ephemeral: true });
+            }
+            return;
+        }
+
         // --- TICKET SYSTEM ---
         if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_menu') {
             const reason = interaction.values[0];
@@ -123,7 +173,7 @@ module.exports = {
                     ).setFooter({ text: 'Category: Moderation (Admin Only)' });
                     break;
                 case 'help_general':
-                    embed.setColor('#2F3136').setTitle(`${getEmoji(emojis.help_general, '🧭')} GENERAL BOT COMMANDS`).setDescription('Here are the basic commands available for all server members:').addFields({ name: `${p} afk [reason]\``, value: 'Set your status to Away From Keyboard (AFK).' },{ name: `\`${p} info\``, value: 'View bot statistics, current ping, and system uptime.' },{ name: `\`${p} avatar [user]\``, value: 'Display your own or another member\'s high-resolution avatar.' },{ name: `\`${p} vote\``, value: 'Support our outpost by voting for the bot on community lists.' },{ name: `\`${p} dog / cat\``, value: 'Summon a random cute dog or cat image.' },{ name: `\`${p} meme\``, value: 'Get a random fresh meme from Reddit.' }).setFooter({ text: 'Category: General Commands' });
+                    embed.setColor('#2F3136').setTitle(`${getEmoji(emojis.help_general, '🧭')} GENERAL BOT COMMANDS`).setDescription('Here are the basic commands available for all server members:').addFields({ name: `\`${p} afk [reason]\``, value: 'Set your status to Away From Keyboard (AFK).' },{ name: `\`${p} info\``, value: 'View bot statistics, current ping, and system uptime.' },{ name: `\`${p} avatar [user]\``, value: 'Display your own or another member\'s high-resolution avatar.' },{ name: `\`${p} vote\``, value: 'Support our outpost by voting for the bot on community lists.' },{ name: `\`${p} dog / cat\``, value: 'Summon a random cute dog or cat image.' },{ name: `\`${p} meme\``, value: 'Get a random fresh meme from Reddit.' }).setFooter({ text: 'Category: General Commands' });
                     break;
                 case 'help_profile':
                     embed.setColor('#2F3136').setTitle(`${getEmoji(emojis.help_profile, '👤')} PLAYER PROFILE SYSTEM`).setDescription('📋 **STATUS: COMING SOON**\n\nThis feature is currently under heavy development by the Outpost Commanders.\n\nSoon you will be able to earn customized **Badges**, unlock legendary **Titles**, level up by chatting, and compete on the global server **Leaderboard**!').setFooter({ text: 'Category: Profile & Ranks' });

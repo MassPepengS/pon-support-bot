@@ -6,6 +6,52 @@ module.exports = {
     async execute(message, client) {
         if (message.author.bot || !message.guild) return;
 
+        // ==========================================
+        // 1. MESIN PENGECEK CAPTCHA (PRIORITAS UTAMA)
+        // ==========================================
+        if (message.channel.name.startsWith('verify-')) {
+            if (!client.captchaCodes) client.captchaCodes = new Map();
+            const expectedCode = client.captchaCodes.get(message.author.id);
+
+            // Pastikan ini adalah channel milik user tersebut dan dia punya kode yang harus ditebak
+            if (expectedCode && message.channel.topic === message.author.id) {
+                if (message.content === expectedCode) {
+                    // JIKA BENAR: Beri akses dan hancurkan channel
+                    const settings = client.checkDatabase(message.guild.id);
+                    const unvRole = message.guild.roles.cache.get(settings[message.guild.id]?.unverifiedRoleId);
+                    const verRole = message.guild.roles.cache.get(settings[message.guild.id]?.verifiedRoleId);
+                    
+                    if (unvRole) await message.member.roles.remove(unvRole).catch(()=>{});
+                    if (verRole) await message.member.roles.add(verRole).catch(()=>{});
+
+                    message.reply('✅ **VERIFICATION SUCCESSFUL!** Server access is open. This channel will be destroyed in 1 minutes...').catch(()=>{});
+                    setTimeout(() => message.channel.delete().catch(()=>{}), 60000);
+                    client.captchaCodes.delete(message.author.id);
+                } else {
+                    // JIKA SALAH: Acak ulang kode dan kirim gambar baru
+                    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                    let newCode = '';
+                    for (let i = 0; i < 6; i++) {
+                        newCode += characters.charAt(Math.floor(Math.random() * characters.length));
+                    }
+                    client.captchaCodes.set(message.author.id, newCode);
+                    const imageUrl = `https://dummyimage.com/300x100/2F3136/ffffff.png&text=${newCode}`;
+
+                    const embed = new EmbedBuilder()
+                        .setColor('#ED4245')
+                        .setTitle('❌ CAPTCHA SALAH!')
+                        .setDescription('Kode tidak cocok! Silakan coba lagi dengan kode baru yang ada di gambar bawah ini:\n*(Pastikan huruf besar/kecil sesuai)*')
+                        .setImage(imageUrl);
+
+                    message.reply({ embeds: [embed] }).catch(()=>{});
+                }
+                return; // STOP DI SINI! Jangan lanjut ke AutoMod atau Prefix agar tidak bentrok.
+            }
+        }
+
+        // ==========================================
+        // 2. SISTEM AUTOMOD & COMMAND (JALAN SEPERTI BIASA)
+        // ==========================================
         try {
             const guildId = message.guild.id;
             const settings = client.checkDatabase(guildId);
@@ -95,6 +141,7 @@ module.exports = {
 
             if (afkChanged) fs.writeFileSync(client.AFK_FILE, JSON.stringify(afkData, null, 2));
 
+            // FILTER PREFIX DI SINI (Aman, tidak memblokir CAPTCHA lagi)
             if (!contentLower.startsWith(client.PREFIX.toLowerCase())) return;
             const args = contentRaw.slice(client.PREFIX.length).trim().split(/\s+/);
             if (args.length === 0) return;

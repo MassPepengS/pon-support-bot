@@ -98,7 +98,13 @@ const commands = [
     new SlashCommandBuilder().setName('lock').setDescription('Lock a channel').addChannelOption(opt => opt.setName('channel').setDescription('Select channel').setRequired(false)),
     new SlashCommandBuilder().setName('unlock').setDescription('Unlock a channel').addChannelOption(opt => opt.setName('channel').setDescription('Select channel').setRequired(false)),
     new SlashCommandBuilder().setName('slowmode').setDescription('Set channel slowmode').addChannelOption(opt => opt.setName('channel').setDescription('Select channel').setRequired(true)).addIntegerOption(opt => opt.setName('seconds').setDescription('Slowmode in seconds').setRequired(true)),
-    new SlashCommandBuilder().setName('suggestion').setDescription('Deploy the Suggestion Panel (Admin Only)')
+    new SlashCommandBuilder().setName('suggestion').setDescription('Deploy the Suggestion Panel (Admin Only)'),
+
+    new SlashCommandBuilder().setName('verifysetup').setDescription('Setup the CAPTCHA Verification System')
+        .addRoleOption(opt => opt.setName('unverified').setDescription('Role given automatically to new members').setRequired(true))
+        .addRoleOption(opt => opt.setName('verified').setDescription('Role given after passing CAPTCHA').setRequired(true))
+        .addChannelOption(opt => opt.setName('channel').setDescription('Target channel to deploy the panel').setRequired(true)),
+
 ].map(command => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
