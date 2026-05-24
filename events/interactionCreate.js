@@ -5,16 +5,45 @@ const path = require('path');
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction, client) {
-        
+
+        // --- ROLE MENU SYSTEM (BARU!) ---
+        if (interaction.isStringSelectMenu() && (interaction.customId === 'server_roles_menu' || interaction.customId === 'language_roles_menu')) {
+            await interaction.deferReply({ ephemeral: true });
+            
+            try {
+                // Menarik semua daftar ID yang ada di dalam menu secara dinamis
+                const actionRow = interaction.message.components.find(row => row.components[0].customId === interaction.customId);
+                const allAvailableIds = actionRow.components[0].options.map(opt => opt.value);
+                const selectedIds = interaction.values;
+                const member = interaction.member;
+
+                // 1. Cabut role yang tidak dipilih (tapi ada di kategori menu ini)
+                const rolesToRemove = allAvailableIds.filter(id => !selectedIds.includes(id) && member.roles.cache.has(id));
+                if (rolesToRemove.length > 0) await member.roles.remove(rolesToRemove);
+
+                // 2. Tambahkan role yang baru dipilih
+                const rolesToAdd = selectedIds.filter(id => !member.roles.cache.has(id));
+                if (rolesToAdd.length > 0) await member.roles.add(rolesToAdd);
+
+                await interaction.editReply({ content: '✅ **Roles updated successfully!** Your profile has been synchronized.' });
+            } catch (error) {
+                console.error(error);
+                await interaction.editReply({ content: '❌ **Failed to update roles!** (Ensure the Bot role is placed HIGHER than the roles it is trying to give).' });
+            }
+            return;
+        }
+
         // --- VERIFICATION SYSTEM (CAPTCHA) ---
         if (interaction.isButton() && interaction.customId === 'verify_button') {
             const member = interaction.member;
             const guild = interaction.guild;
-            
+
             try {
-                // Cek apakah pemain sudah punya saluran verifikasi aktif
+                // 🚨 AUTO-CLEAN: Menghancurkan channel lama yang kuncinya sudah hangus
                 const existingChannel = guild.channels.cache.find(c => c.topic === member.id && c.name.startsWith('verify-'));
-                if (existingChannel) return interaction.reply({ content: `❌ You already have an active verification channel: ${existingChannel}`, ephemeral: true });
+                if (existingChannel) {
+                    await existingChannel.delete().catch(() => {});
+                }
 
                 const verifyChannel = await guild.channels.create({
                     name: `verify-${member.user.username}`,
@@ -27,11 +56,11 @@ module.exports = {
                     ]
                 });
 
-                await interaction.reply({ content: `✅ Verification channel created! Head over to ${verifyChannel}`, ephemeral: true });
+                await interaction.reply({ content: `✅ Security verification deployed! Head over to ${verifyChannel}`, ephemeral: true });
 
-                // Membuat generator kode acak 6 karakter (angka & huruf besar/kecil)
+                // Membuat generator kode acak 6 karakter
                 if (!client.captchaCodes) client.captchaCodes = new Map();
-                
+
                 const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
                 let code = '';
                 for (let i = 0; i < 6; i++) {
@@ -81,7 +110,7 @@ module.exports = {
 
         if (interaction.isButton() && interaction.customId === 'close_ticket') {
             try {
-                await interaction.reply('🔒 Securing data logs and dismantling channel in 5 seconds...');
+                await interaction.reply('🔒 Securing data logs and dismantling channel in 1 minute...');
                 const channel = interaction.channel;
                 const guildId = interaction.guild.id;
                 const settings = client.checkDatabase(guildId);
@@ -105,7 +134,9 @@ module.exports = {
                         await logChannel.send({ embeds: [embedLog], files: [attachment] });
                     }
                 }
-                setTimeout(() => { channel.delete().catch(console.error); }, 5000);
+
+                // Waktu penghancuran channel tiket diubah jadi 1 Menit (60000 ms)
+                setTimeout(() => { channel.delete().catch(console.error); }, 60000);
             } catch (err) { await interaction.followUp({ content: '❌ Error closing ticket.', ephemeral: true }).catch(()=>{}); }
             return;
         }
@@ -133,7 +164,10 @@ module.exports = {
                 const suggestionMsg = await targetChannel.send({ embeds: [suggestionEmbed] });
                 await suggestionMsg.react('⬆️'); await suggestionMsg.react('⬇️');
                 if (interaction.message) await interaction.message.delete().catch(() => {});
+
+                // Ganti tautan GIF di bawah ini dengan tautan Imgur pilihan Anda
                 const panelEmbed = new EmbedBuilder().setColor('#2F3136').setTitle('💡 PIONEER IDEAS & SUGGESTIONS').setDescription('Have a thought that could make **Pioneer Outpost Nusa** even greater? Share it with the community!\n\n• Click the button below to submit your suggestion.\n• The community can vote using ⬆️ and ⬇️ reactions.\n• Highly voted ideas will be reviewed and possibly implemented by the Outpost Commanders.\n\n*Help us build a better world!*').setImage('https://i.imgur.com/feJtRAt.gif');
+
                 const btn = new ButtonBuilder().setCustomId('create_suggestion').setLabel('CREATE SUGGESTION').setStyle(ButtonStyle.Primary).setEmoji('📝');
                 await interaction.channel.send({ embeds: [panelEmbed], components: [new ActionRowBuilder().addComponents(btn)] });
                 await interaction.reply({ content: `✅ Your suggestion has been sent to ${targetChannel}!`, ephemeral: true });
@@ -179,7 +213,7 @@ module.exports = {
                     embed.setColor('#2F3136').setTitle(`${getEmoji(emojis.help_profile, '👤')} PLAYER PROFILE SYSTEM`).setDescription('📋 **STATUS: COMING SOON**\n\nThis feature is currently under heavy development by the Outpost Commanders.\n\nSoon you will be able to earn customized **Badges**, unlock legendary **Titles**, level up by chatting, and compete on the global server **Leaderboard**!').setFooter({ text: 'Category: Profile & Ranks' });
                     break;
                 case 'help_management':
-                    embed.setColor('#2F3136').setTitle(`${getEmoji(emojis.help_management, '🧱')} CH MANAGEMENT & WELCOME SETUP`).setDescription('Configuration commands to control, structure channels, setup greetings, and logs:').addFields({ name: '🧱 Channel & Role Management', value: `\`${p} crt cha [name]\` - Create text channel.\n\`${p} crt cat [name]\` - Create category folder.\n\`${p} crt role [hex] [name]\` - Create custom colored role.\n\`${p} rmv [cha/cat/role]\` - Delete channel/category/role.\n\`${p} rmv msg [amount]\` - Clear chat messages.\n\`${p} lock / unlock [channel]\` - Toggle channel locks.\n\`${p} slowmode [channel] [seconds]\` - Set slowmode cooldown.` },{ name: '👋 Welcome Greeting Configurations', value: `\`${p} set wcm [#channel]\` - Set target welcome channel.\n\`${p} wcm gif [imgur_link]\` - Pool custom background Imgur GIF.\n\`${p} wcm list\` - View registered welcome GIFs.\n\`${p} wcm rmv [num]\` - Remove custom GIF from database.` },{ name: '📝 Ticket & Suggestion Logs', value: `\`${p} set log [#channel]\` - Set archive log channel for closed tickets.\n\`${p} set sug [#channel]\` - Set community suggestion channel.\n\`${p} suggestion\` - Deploy Suggestion Embed Panel.` }).setFooter({ text: 'Category: Management & Welcome (Admin Only)' });
+                    embed.setColor('#2F3136').setTitle(`${getEmoji(emojis.help_management, '🧱')} CH MANAGEMENT & WELCOME SETUP`).setDescription('Configuration commands to control, structure channels, setup greetings, and logs:').addFields({ name: '🧱 Channel & Role Management', value: `\`${p} crt cha [name]\` - Create text channel.\n\`${p} crt cat [name]\` - Create category folder.\n\`${p} crt role [hex] [name]\` - Create custom colored role.\n\`${p} rmv [cha/cat/role]\` - Delete channel/category/role.\n\`${p} rmv msg [amount]\` - Clear chat messages.\n\`${p} lock / unlock [channel]\` - Toggle channel locks.\n\`${p} slowmode [channel] [seconds]\` - Set slowmode cooldown.` },{ name: '👋 Welcome Greeting Configurations', value: `\`${p} set wcm [#channel]\` - Set target welcome channel.\n\`${p} wcm gif [imgur_link]\` - Pool custom background Imgur GIF.\n\`${p} wcm list\` - View registered welcome GIFs.\n\`${p} wcm rmv [num]\` - Remove custom GIF from database.` },{ name: '📝 Ticket & Suggestion Logs', value: `\`${p} set log [#channel]\` - Set archive log channel for closed tickets.\n\`${p} set sug [#channel]\` - Set community suggestion channel.\n\`${p} suggestion\` - Deploy Suggestion Embed Panel.` }, { name: '🛡️ Security & Role Panels', value: `\`${p} verifysetup [@unv] [@ver] [#channel]\` - Deploy CAPTCHA gate.\n\`${p} rolesetup\` - Deploy Auto-Role Menu Panel.` }).setFooter({ text: 'Category: Management & Welcome (Admin Only)' });
                     break;
                 case 'help_support':
                     embed.setColor('#2F3136').setTitle(`${getEmoji(emojis.help_support, '🛠️')} SUPPORT & UTILITIES PANEL`).setDescription('Core configuration tools for advanced bot access modules:').addFields({ name: `\`${p} access add / rmv [@user]\``, value: 'Grant or revoke custom admin permissions to run bot commands.' },{ name: `\`${p} access list\``, value: 'Display all authorized custom bot administrators.' }, { name: '📌 Help Panel Shortcuts', value: `\`${p} help gen\` - Open General panel\n\`${p} help pro\` - Open Profile panel\n\`${p} help cha\` - Open Management panel\n\`${p} help mod\` - Open Moderation panel\n\`${p} help sup\` - Open Support panel` }).setFooter({ text: 'Category: Support & Utilities (Admin Only)' });

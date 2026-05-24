@@ -16,17 +16,24 @@ module.exports = {
             // Pastikan ini adalah channel milik user tersebut dan dia punya kode yang harus ditebak
             if (expectedCode && message.channel.topic === message.author.id) {
                 if (message.content === expectedCode) {
-                    // JIKA BENAR: Beri akses dan hancurkan channel
+                    // JIKA BENAR: Cabut role unverified instan, tapi tahan role verified 1 menit
                     const settings = client.checkDatabase(message.guild.id);
                     const unvRole = message.guild.roles.cache.get(settings[message.guild.id]?.unverifiedRoleId);
                     const verRole = message.guild.roles.cache.get(settings[message.guild.id]?.verifiedRoleId);
-                    
-                    if (unvRole) await message.member.roles.remove(unvRole).catch(()=>{});
-                    if (verRole) await message.member.roles.add(verRole).catch(()=>{});
 
-                    message.reply('✅ **VERIFICATION SUCCESSFUL!** Server access is open. This channel will be destroyed in 1 minutes...').catch(()=>{});
-                    setTimeout(() => message.channel.delete().catch(()=>{}), 60000);
+                    if (unvRole) await message.member.roles.remove(unvRole).catch(()=>{});
+
+                    message.reply('✅ **VERIFICATION SUCCESSFUL!** Server access will open in 1 minute. This channel will be destroyed at the same time, please wait...').catch(()=>{});
+                    
+                    // Hapus kode dari memori agar tidak bisa dijawab dua kali
                     client.captchaCodes.delete(message.author.id);
+
+                    // 🚨 DELAY 1 MENIT (60000 ms) untuk memberi akses dan hapus channel
+                    setTimeout(async () => {
+                        if (verRole) await message.member.roles.add(verRole).catch(()=>{});
+                        await message.channel.delete().catch(()=>{});
+                    }, 60000);
+                    
                 } else {
                     // JIKA SALAH: Acak ulang kode dan kirim gambar baru
                     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -39,8 +46,8 @@ module.exports = {
 
                     const embed = new EmbedBuilder()
                         .setColor('#ED4245')
-                        .setTitle('❌ CAPTCHA SALAH!')
-                        .setDescription('Kode tidak cocok! Silakan coba lagi dengan kode baru yang ada di gambar bawah ini:\n*(Pastikan huruf besar/kecil sesuai)*')
+                        .setTitle('❌ CAPTCHA WRONG!')
+                        .setDescription('The code doesnt match! Please try again with the new code show in the image below:\n*(Make sure the case is correct)*')
                         .setImage(imageUrl);
 
                     message.reply({ embeds: [embed] }).catch(()=>{});

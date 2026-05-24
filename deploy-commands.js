@@ -6,6 +6,7 @@ const commands = [
         .addStringOption(option => option.setName('category').setDescription('Directly open a specific category').setRequired(false)
             .addChoices({ name: 'General', value: 'gen' }, { name: 'Profile', value: 'pro' }, { name: 'Management', value: 'cha' }, { name: 'Moderation', value: 'mod' }, { name: 'Support', value: 'sup' })),
 
+
     // === GENERAL COMMANDS ===
     new SlashCommandBuilder().setName('avatar').setDescription('Display a user\'s avatar')
         .addUserOption(opt => opt.setName('user').setDescription('Select user').setRequired(false)),
@@ -99,6 +100,8 @@ const commands = [
     new SlashCommandBuilder().setName('unlock').setDescription('Unlock a channel').addChannelOption(opt => opt.setName('channel').setDescription('Select channel').setRequired(false)),
     new SlashCommandBuilder().setName('slowmode').setDescription('Set channel slowmode').addChannelOption(opt => opt.setName('channel').setDescription('Select channel').setRequired(true)).addIntegerOption(opt => opt.setName('seconds').setDescription('Slowmode in seconds').setRequired(true)),
     new SlashCommandBuilder().setName('suggestion').setDescription('Deploy the Suggestion Panel (Admin Only)'),
+    new SlashCommandBuilder().setName('rolesetup').setDescription('Deploy the Server & Language Roles Panel (Admin Only)'),
+
 
     new SlashCommandBuilder().setName('verifysetup').setDescription('Setup the CAPTCHA Verification System')
         .addRoleOption(opt => opt.setName('unverified').setDescription('Role given automatically to new members').setRequired(true))
