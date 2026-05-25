@@ -10,7 +10,7 @@ module.exports = {
         const channel = message.mentions.channels.first();
 
         if (roles.length < 2 || !channel) {
-            return message.reply(`❌ Format salah!\nGunakan: \`${message.client.PREFIX} verifysetup [@role_unverified] [@role_verified] [#channel]\``);
+            return message.reply(`❌ Format Wrong!\nUse: \`${message.client.PREFIX} verifysetup [@role_unverified] [@role_verified] [#channel]\``);
         }
 
         const unvRole = roles[0];
