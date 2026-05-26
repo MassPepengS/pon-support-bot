@@ -12,7 +12,7 @@ module.exports = {
         const channel = message.mentions.channels.first();
 
         if (!channel) {
-            return message.reply(`❌ Format salah!\nGunakan: \`${message.client.PREFIX || 'pon'} rolesetup [#channel]\``);
+            return message.reply(`❌ Format wrong!\nUse: \`${message.client.PREFIX || 'pon'} rolesetup [#channel]\``);
         }
 
         const serverRolesMenu = new StringSelectMenuBuilder()
