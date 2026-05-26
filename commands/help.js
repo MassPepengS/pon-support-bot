@@ -44,7 +44,7 @@ module.exports = {
                 { name: '👋 Welcome Greeting Configurations', value: `\`${p} set wcm [#channel]\` - Set target welcome channel.\n\`${p} wcm gif [imgur_link]\` - Pool custom background Imgur GIF.\n\`${p} wcm list\` - View registered welcome GIFs.\n\`${p} wcm rmv [num]\` - Remove custom GIF from database.` },
                 { name: '📝 Ticket & Suggestion Logs', value: `\`${p} set log [#channel]\` - Set archive log channel for closed tickets.\n\`${p} set sug [#channel]\` - Set community suggestion channel.\n\`${p} suggestion\` - Deploy Suggestion Embed Panel.` },
                 { name: '🛡️ Security & Role Panels', value: `\`${p} verifysetup [@unv] [@ver] [#channel]\` - Deploy CAPTCHA gate.\n\`${p} rolesetup [#channel]\` - Deploy Auto-Role Menu Panel.` },
-                { name: '📢 Announcement System', value: `\`${p} announce [#channel] [message]\` - Send official news/events to a channel (Supports image attachments).` } // <--- FIX DITAMBAHKAN DI SINI
+                { name: '📢 Announcement System', value: `\`${p} announce [#channel] [title] | [message]\` - Send official news/events to a channel (Supports image attachments).` }
             ).setFooter({ text: 'Category: Management & Welcome (Admin Only)' });
             return message.reply({ embeds: [embed] });
         }
@@ -133,7 +133,7 @@ module.exports = {
                 { name: '👋 Welcome Greeting Configurations', value: `\`${p}set wcm [#channel]\` - Set target welcome channel.\n\`${p}wcm gif [imgur_link]\` - Pool custom background Imgur GIF.\n\`${p}wcm list\` - View registered welcome GIFs.\n\`${p}wcm rmv [num]\` - Remove custom GIF from database.` },
                 { name: '📝 Ticket & Suggestion Logs', value: `\`${p}set log [#channel]\` - Set archive log channel for closed tickets.\n\`${p}set sug [#channel]\` - Set community suggestion channel.\n\`${p}suggestion\` - Deploy Suggestion Embed Panel.` },
                 { name: '🛡️ Security & Role Panels', value: `\`${p}verifysetup [@unv] [@ver] [#channel]\` - Deploy CAPTCHA gate.\n\`${p}rolesetup\` - Deploy Auto-Role Menu Panel.` },
-                { name: '📢 Announcement System', value: `\`${p}announce [#channel] [message]\` - Send official news/events to a channel (Supports image attachments).` } // <--- FIX DITAMBAHKAN DI SINI
+                { name: '📢 Announcement System', value: `\`${p}announce [#channel] [title] | [message]\` - Send official news/events to a channel (Supports image attachments).` }
             ).setFooter({ text: 'Category: Management & Welcome (Admin Only)' });
             return interaction.reply({ embeds: [embed] });
         }
