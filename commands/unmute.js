@@ -23,7 +23,9 @@ module.exports = {
             
             // Cabut role muted (jika ada)
             const guildId = ctx.guild.id;
-            const muteRole = settings[guildId]?.muteRoleId;
+            // 🚀 BACA DARI MESIN RAM
+            const guildSettings = ctx.client.checkDatabase(guildId);
+            const muteRole = guildSettings.muteRoleId;
             if (muteRole) await target.roles.remove(muteRole).catch(()=>{});
 
             const replyMsg = `✅ **${target.user.tag}** has been Unmuted. Reason: ${reason}`;
@@ -37,18 +39,22 @@ module.exports = {
             }
 
             let logChannel = null;
-            const logChanId = settings[guildId]?.modLogChannelId;
+            const logChanId = guildSettings.modLogChannelId;
             if (logChanId) logChannel = ctx.guild.channels.cache.get(logChanId) || await ctx.guild.channels.fetch(logChanId).catch(() => null);
             else logChannel = ctx.guild.channels.cache.find(c => c.name.toLowerCase().includes('mod'));
 
             if (logChannel) {
                 let caseId = "000000";
                 try {
-                    let db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-                    if (!db[guildId]) db[guildId] = {};
-                    db[guildId].caseCount = (db[guildId].caseCount || 0) + 1;
-                    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
-                    caseId = db[guildId].caseCount.toString().padStart(6, '0');
+                    // 🚀 BACA DARI MESIN RAM SETTINGS (Anti-Lag)
+                    guildSettings.caseCount = (guildSettings.caseCount || 0) + 1;
+                    
+                    // Simpan asinkron di latar belakang
+                    fs.writeFile(SETTINGS_FILE, JSON.stringify(ctx.client.databaseCache, null, 2), (err) => {
+                        if (err) console.error("Gagal save caseCount Unmute:", err);
+                    });
+                    
+                    caseId = guildSettings.caseCount.toString().padStart(6, '0');
                 } catch (err) { caseId = "ERR" + Math.floor(Math.random() * 1000); }
 
                 const embed = new EmbedBuilder()

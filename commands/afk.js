@@ -11,8 +11,16 @@ module.exports = {
 
     async handleAFK(ctx, reasonInput, type) {
         const AFK_FILE = './afk.json';
-        if (!fs.existsSync(AFK_FILE)) fs.writeFileSync(AFK_FILE, JSON.stringify({}));
-        const afkData = JSON.parse(fs.readFileSync(AFK_FILE, 'utf8'));
+        
+        // Membaca file dengan aman
+        let afkData = {};
+        if (fs.existsSync(AFK_FILE)) {
+            try {
+                afkData = JSON.parse(fs.readFileSync(AFK_FILE, 'utf8'));
+            } catch (e) {
+                console.error("⚠️ Gagal membaca afk.json:", e);
+            }
+        }
         
         const guildId = ctx.guild.id;
         const userId = ctx.member ? ctx.member.id : ctx.user.id;
@@ -26,7 +34,10 @@ module.exports = {
             timestamp: Date.now() // Untuk hitung mundur waktu AFK
         };
         
-        fs.writeFileSync(AFK_FILE, JSON.stringify(afkData, null, 2));
+        // 🚀 PERBARUAN: Menyimpan secara Asinkron (Latar Belakang) agar Anti-Lag
+        fs.writeFile(AFK_FILE, JSON.stringify(afkData, null, 2), (err) => {
+            if (err) console.error('⚠️ [ERROR] Gagal menyimpan data AFK:', err);
+        });
         
         const msg = `💤 **${displayName}** is now AFK: ${reason}`;
         

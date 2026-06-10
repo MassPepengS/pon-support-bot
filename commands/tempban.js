@@ -57,18 +57,20 @@ module.exports = {
             // Eksekusi ban di server
             await guild.members.ban(targetId, { reason: `Tempban by ${staff.username}: ${reason}` });
 
-            // Simpan ke database untuk Auto-Unban di events/ready.js
-            let db = {};
-            try { db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch (e) { db = {}; }
-            if (!db[guild.id]) db[guild.id] = {};
-            if (!db[guild.id].tempbans) db[guild.id].tempbans = [];
+            // 🚀 BACA DARI MESIN RAM SETTINGS (Anti-Lag)
+            const guildSettings = ctx.client.checkDatabase(guild.id);
+            if (!guildSettings.tempbans) guildSettings.tempbans = [];
 
             const unbanTime = Date.now() + durationMs;
-            db[guild.id].tempbans.push({
+            guildSettings.tempbans.push({
                 userId: targetId,
                 unbanAt: unbanTime
             });
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
+            
+            // Simpan secara asinkron (Background process)
+            fs.writeFile(SETTINGS_FILE, JSON.stringify(ctx.client.databaseCache, null, 2), (err) => {
+                if (err) console.error("Gagal save tempban:", err);
+            });
 
             const targetName = targetObj ? targetObj.username : targetId;
             const replyMsg = `✅ **${targetName}** has been Temp-Banned for **${durationText}**. Reason: ${reason}`;
@@ -81,16 +83,20 @@ module.exports = {
                 setTimeout(() => msg.delete().catch(()=>{}), 5000);
             }
 
-            // MOD LOG
+            // MOD LOG (Tarik channel log dari RAM juga)
             let logChannel = null;
-            const logChanId = db[guild.id]?.modLogChannelId || settings[guild.id]?.modLogChannelId;
+            const logChanId = guildSettings.modLogChannelId;
             if (logChanId) logChannel = guild.channels.cache.get(logChanId) || await guild.channels.fetch(logChanId).catch(() => null);
             else logChannel = guild.channels.cache.find(c => c.name.toLowerCase().includes('mod'));
 
             if (logChannel) {
-                db[guild.id].caseCount = (db[guild.id].caseCount || 0) + 1;
-                fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
-                const caseId = db[guild.id].caseCount.toString().padStart(6, '0');
+                guildSettings.caseCount = (guildSettings.caseCount || 0) + 1;
+                
+                fs.writeFile(SETTINGS_FILE, JSON.stringify(ctx.client.databaseCache, null, 2), (err) => {
+                    if (err) console.error("Gagal save caseCount Tempban:", err);
+                });
+                
+                const caseId = guildSettings.caseCount.toString().padStart(6, '0');
 
                 const embed = new EmbedBuilder()
                     .setColor('#992D22') // Merah tua

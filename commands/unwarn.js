@@ -19,24 +19,39 @@ module.exports = {
     async executeAction(ctx, target, staff, reason, settings, SETTINGS_FILE) {
         const guildId = ctx.guild.id;
         
-        let db = {};
-        try { db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch (e) { db = {}; }
-        if (!db[guildId]) db[guildId] = {};
-        if (!db[guildId].warns) db[guildId].warns = {};
+        // 🚀 BACA DARI MESIN RAM
+        const guildSettings = ctx.client.checkDatabase(guildId);
+        if (!guildSettings.warns) guildSettings.warns = {};
+        if (!guildSettings.warns[target.id]) guildSettings.warns[target.id] = 0;
+        if (!guildSettings.history) guildSettings.history = {};
+        if (!guildSettings.history[target.id]) guildSettings.history[target.id] = [];
 
-        let userWarns = db[guildId].warns[target.id] || 0;
-        
-        // Kalau warn sudah 0, tidak bisa dikurangi lagi
-        if (userWarns <= 0) {
-            const err = `❌ **${target.user.tag}** currently has 0 warnings!`;
-            if (ctx.commandName) return ctx.reply({content: err, ephemeral: true});
-            else return ctx.reply(err);
+        if (guildSettings.warns[target.id] <= 0) {
+            const err = '❌ This user has no warnings to remove!';
+            if (ctx.commandName) return ctx.reply({content: err, ephemeral: true}); else return ctx.reply(err);
         }
 
-        userWarns -= 1; // Kurangi 1 peringatan
-        db[guildId].warns[target.id] = userWarns;
-        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
+        // Kurangi jumlah warn
+        guildSettings.warns[target.id] -= 1;
+        const userWarns = guildSettings.warns[target.id];
 
+        // 🚀 SISTEM UNDO: Hapus riwayat warn terakhir dari history
+        if (guildSettings.history[target.id].length > 0) {
+            guildSettings.history[target.id].pop(); // Menarik kembali catatan terakhir
+        }
+        
+        // Jika warn habis (0), pastikan history bersih total
+        if (userWarns === 0) {
+            guildSettings.history[target.id] = [];
+        }
+
+        // Update Case Count untuk Log Mod (Laporan ke Channel Log Tetap Jalan)
+        guildSettings.caseCount = (guildSettings.caseCount || 0) + 1;
+        const caseId = guildSettings.caseCount.toString().padStart(6, '0');
+
+        // Simpan Asinkron
+        fs.writeFile(SETTINGS_FILE, JSON.stringify(ctx.client.databaseCache, null, 2), (err) => {});
+        
         const replyMsg = `✅ **${target.user.tag}** unwarned (Warns left: ${userWarns}/3). Reason: ${reason}`;
         
         if (ctx.commandName) {
@@ -47,20 +62,22 @@ module.exports = {
             setTimeout(() => msg.delete().catch(()=>{}), 5000);
         }
 
+        // 🚀 LOG KE CHANNEL MODERATION-LOGS (TIDAK MASUK HISTORY PLAYER)
         let logChannel = null;
-        const logChanId = db[guildId]?.modLogChannelId || settings[guildId]?.modLogChannelId;
-        if (logChanId) logChannel = ctx.guild.channels.cache.get(logChanId) || await ctx.guild.channels.fetch(logChanId).catch(() => null);
-        else logChannel = ctx.guild.channels.cache.find(c => c.name.toLowerCase().includes('mod'));
+        const logChanId = guildSettings.modLogChannelId;
+        
+        if (logChanId) {
+            logChannel = ctx.guild.channels.cache.get(logChanId) || await ctx.guild.channels.fetch(logChanId).catch(() => null);
+        } else {
+            // Pencarian nama pasti
+            logChannel = ctx.guild.channels.cache.find(c => c.name === 'moderation-logs' || c.name === 'mod-logs');
+        }
 
         if (logChannel) {
-            db[guildId].caseCount = (db[guildId].caseCount || 0) + 1;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
-            const caseId = db[guildId].caseCount.toString().padStart(6, '0');
-
             const embed = new EmbedBuilder()
                 .setColor('#2ECC71') // Hijau tanda pengampunan
                 .setAuthor({name: `Mod Action | ${target.user.username}`})
-                .setDescription(`**USER**\n<@${target.id}> | ${target.user.username}\n**STAFF**\n<@${staff.id}>\n**ACTION**\nUnwarn (Warns left: ${userWarns}/3)\n**REASON**\n${reason}\n\n**CASE ID:** ${caseId}`)
+                .setDescription(`**USER**\n<@${target.id}> | ${target.user.username}\n**STAFF**\n<@${staff.id}>\n**ACTION**\nUnwarn (${userWarns}/3)\n**REASON**\n${reason}\n\n**CASE ID:** ${caseId}`)
                 .setTimestamp();
             await logChannel.send({embeds: [embed]}).catch(()=>{});
         }

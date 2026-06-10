@@ -18,7 +18,7 @@ module.exports = {
             .setColor('#2F3136')
             .setTitle('💡 PIONEER IDEAS & SUGGESTIONS')
             .setDescription('-# Have a thought that could make **Pioneer Outpost Nusa** even greater? Share it with the community!\n\n• Click the button below to submit your suggestion.\n• The community can vote using ⬆️ and ⬇️ reactions.\n• Highly voted ideas will be reviewed and possibly implemented by the Outpost Commanders.\n\n*Help us build a better world!*')
-            .setImage('https://i.imgur.com/feJtRAt.gif'); // <--- GIF BARU SUDAH DIPASANG DI SINI
+            .setImage('https://i.imgur.com/0fQFrmQ.png'); // <--- GIF BARU SUDAH DIPASANG DI SINI
 
         const btn = new ButtonBuilder()
             .setCustomId('create_suggestion')

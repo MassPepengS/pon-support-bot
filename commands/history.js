@@ -1,5 +1,4 @@
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const fs = require('fs');
 
 module.exports = {
     name: 'history',
@@ -16,15 +15,14 @@ module.exports = {
     async executeAction(ctx, target, staff, settings, SETTINGS_FILE) {
         const guildId = ctx.guild.id;
         
-        let db = {};
-        try { db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch (e) { db = {}; }
-        if (!db[guildId]) db[guildId] = {};
+        // 🚀 BACA DARI MESIN RAM SETTINGS
+        const guildSettings = ctx.client.checkDatabase(guildId);
         
-        const userWarns = db[guildId].warns?.[target.id] || 0;
-        const userHistory = db[guildId].history?.[target.id] || [];
+        const userWarns = guildSettings.warns?.[target.id] || 0;
+        const userHistory = guildSettings.history?.[target.id] || [];
 
         const embed = new EmbedBuilder()
-            .setColor('#2F3136') // <-- Dikembalikan ke warna "Invisible" / Tidak Berwarna
+            .setColor('#2F3136') // <-- SOP Warna Dipertahankan
             .setAuthor({ name: `Modlog History | ${target.user.username}`, iconURL: target.user.displayAvatarURL() })
             .setTimestamp();
 

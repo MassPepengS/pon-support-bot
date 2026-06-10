@@ -19,31 +19,42 @@ module.exports = {
     async executeAction(ctx, target, staff, reason, settings, SETTINGS_FILE) {
         const guildId = ctx.guild.id;
 
-        // BACA ULANG DATABASE AGAR 100% AKURAT DAN AMAN (SUPER BAJA)
-        let db = {};
-        try { db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch (e) { db = {}; }
-        if (!db[guildId]) db[guildId] = {};
-        if (!db[guildId].warns) db[guildId].warns = {}; // Otomatis buat laci warns
+        // 🚀 BACA DARI MESIN RAM
+        const guildSettings = ctx.client.checkDatabase(guildId);
+        if (!guildSettings.warns) guildSettings.warns = {};
+        if (!guildSettings.warns[target.id]) guildSettings.warns[target.id] = 0;
+        if (!guildSettings.history) guildSettings.history = {};
+        if (!guildSettings.history[target.id]) guildSettings.history[target.id] = [];
 
-        let userWarns = db[guildId].warns[target.id] || 0;
-        userWarns += 1;
-        db[guildId].warns[target.id] = userWarns;
-        
-        // Simpan database dengan data terbaru
-        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
+        guildSettings.warns[target.id] += 1;
+        const userWarns = guildSettings.warns[target.id];
 
-        let replyMsg = `✅ **${target.user.tag}** warned (Warn ${userWarns}/3). Reason: ${reason}`;
-        let autoMuted = false;
-
-        if (userWarns % 3 === 0) {
-            autoMuted = true;
+        // Auto-Mute jika 3 Warn
+        let actionText = `Warn (${userWarns}/3)`;
+        if (userWarns >= 3) {
+            actionText = `Warn (${userWarns}/3) & Auto-Mute (1 Day)`;
             await target.timeout(24 * 60 * 60 * 1000, 'Auto-Mute: Reached 3 warnings').catch(()=>{});
-            const muteRole = db[guildId].muteRoleId || settings[guildId]?.muteRoleId;
+            const muteRole = guildSettings.muteRoleId;
             if (muteRole) await target.roles.add(muteRole).catch(()=>{});
-            replyMsg += `\n🚨 **3 Warns Reached!** User has been auto-muted for 1 Day.`;
+            guildSettings.warns[target.id] = 0; 
         }
 
-        // PESAN HILANG DALAM 5 DETIK
+        // SIMPAN HISTORY
+        guildSettings.caseCount = (guildSettings.caseCount || 0) + 1;
+        const caseId = guildSettings.caseCount.toString().padStart(6, '0');
+
+        guildSettings.history[target.id].push({
+            caseId: caseId,
+            action: actionText,
+            reason: reason,
+            staffId: staff.id,
+            timestamp: Date.now()
+        });
+
+        // Simpan Asinkron
+        fs.writeFile(SETTINGS_FILE, JSON.stringify(ctx.client.databaseCache, null, 2), (err) => {});
+
+        const replyMsg = `✅ **${target.user.tag}** warned (${userWarns}/3). Reason: ${reason}`;
         if (ctx.commandName) {
             await ctx.reply({ content: replyMsg });
             setTimeout(() => ctx.deleteReply().catch(()=>{}), 5000);
@@ -52,21 +63,22 @@ module.exports = {
             setTimeout(() => msg.delete().catch(()=>{}), 5000);
         }
 
-        // KIRIM LOG MODERASI
+        // 🚀 SOLUSI ANTI NYASAR (Diperbarui)
         let logChannel = null;
-        const logChanId = db[guildId]?.modLogChannelId || settings[guildId]?.modLogChannelId;
-        if (logChanId) logChannel = ctx.guild.channels.cache.get(logChanId) || await ctx.guild.channels.fetch(logChanId).catch(() => null);
-        else logChannel = ctx.guild.channels.cache.find(c => c.name.toLowerCase().includes('mod'));
+        const logChanId = guildSettings.modLogChannelId;
+        
+        if (logChanId) {
+            logChannel = ctx.guild.channels.cache.get(logChanId) || await ctx.guild.channels.fetch(logChanId).catch(() => null);
+        } else {
+            // Jika ID gagal dilacak, hanya cari nama yang EXACT sama (BUKAN .includes)
+            logChannel = ctx.guild.channels.cache.find(c => c.name === 'moderation-logs' || c.name === 'mod-logs');
+        }
 
         if (logChannel) {
-            db[guildId].caseCount = (db[guildId].caseCount || 0) + 1;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
-            const caseId = db[guildId].caseCount.toString().padStart(6, '0');
-
             const embed = new EmbedBuilder()
                 .setColor('#FEE75C')
                 .setAuthor({name: `Mod Action | ${target.user.username}`})
-                .setDescription(`**USER**\n<@${target.id}> | ${target.user.username}\n**STAFF**\n<@${staff.id}>\n**ACTION**\nWarn (${userWarns}/3)${autoMuted ? ' + Auto-Mute (1d)' : ''}\n**REASON**\n${reason}\n\n**CASE ID:** ${caseId}`)
+                .setDescription(`**USER**\n<@${target.id}> | ${target.user.username}\n**STAFF**\n<@${staff.id}>\n**ACTION**\n${actionText}\n**REASON**\n${reason}\n\n**CASE ID:** ${caseId}`)
                 .setTimestamp();
             await logChannel.send({embeds: [embed]}).catch(()=>{});
         }

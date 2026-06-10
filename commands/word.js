@@ -19,6 +19,12 @@ module.exports = {
 
         if (!settings[guildId].badWords) settings[guildId].badWords = [];
 
+        // FUNGSI SENSOR: Mengubah "anjing" jadi "a****g" agar tidak diblokir Discord
+        const censorWord = (word) => {
+            if (word.length <= 2) return '*'.repeat(word.length);
+            return word[0] + '*'.repeat(word.length - 2) + word[word.length - 1];
+        };
+
         // COMMAND: ADD
         if (action === 'add' || action === 'crt') {
             if (!wordInput) return message.reply("❌ Please specify a word to add.");
@@ -28,8 +34,14 @@ module.exports = {
             }
             
             settings[guildId].badWords.push(wordInput);
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
-            return message.reply(`✅ Successfully added **"${wordInput}"** to the filter list.`);
+            
+            // 🚀 Simpan asinkron di latar belakang (Anti-Lag)
+            fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), (err) => {
+                if (err) console.error("Gagal save filter word:", err);
+            });
+            
+            const safeWord = censorWord(wordInput);
+            return message.reply(`✅ Successfully added **"${safeWord}"** to the filter list.`);
         }
 
         // COMMAND: REMOVE
@@ -41,12 +53,15 @@ module.exports = {
                 return message.reply("⚠️ That word is not in the filter list.");
             }
             
-            // Hapus kata dari array
             settings[guildId].badWords.splice(index, 1);
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
             
-            // INI BAGIAN YANG HILANG: Mengirim konfirmasi sukses!
-            return message.reply(`✅ Successfully removed **"${wordInput}"** from the filter list.`);
+            // 🚀 Simpan asinkron di latar belakang (Anti-Lag)
+            fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), (err) => {
+                if (err) console.error("Gagal hapus filter word:", err);
+            });
+            
+            const safeWord = censorWord(wordInput);
+            return message.reply(`✅ Successfully removed **"${safeWord}"** from the filter list.`);
         }
 
         // COMMAND: LIST
@@ -55,10 +70,12 @@ module.exports = {
             if (!list || list.length === 0) {
                 return message.reply("📝 The filter list is currently empty.");
             }
-            return message.reply(`📝 **Filtered Words:**\n\`${list.join(', ')}\``);
+            
+            // Sensor semua kata di daftar saat ditampilkan
+            const censoredList = list.map(w => censorWord(w));
+            return message.reply(`📝 **Filtered Words:**\n\`${censoredList.join(', ')}\``);
         }
 
-        // Jika salah ketik action
         return message.reply("❌ Invalid action. Please use `add`, `rmv`, or `list`.");
     }
 };

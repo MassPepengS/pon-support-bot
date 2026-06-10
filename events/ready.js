@@ -13,7 +13,9 @@ module.exports = {
         // ==========================================
         setInterval(async () => {
             try {
-                let db = JSON.parse(fs.readFileSync(client.SETTINGS_FILE, 'utf8'));
+                // 🚀 BACA DARI MESIN RAM (Super Ringan & Anti-Lag!)
+                if (!client.databaseCache) return; // Abaikan jika RAM belum siap dimuat oleh index.js
+                const db = client.databaseCache;
                 let dbChanged = false;
                 
                 for (const guildId in db) {
@@ -52,8 +54,14 @@ module.exports = {
                         }
                     }
                 }
-                if (dbChanged) fs.writeFileSync(client.SETTINGS_FILE, JSON.stringify(db, null, 2));
-            } catch (error) { /* Abaikan error read file saat bentrok penyimpanan */ }
+                
+                // Simpan asinkron di latar belakang HANYA jika ada yang di-unban
+                if (dbChanged) {
+                    fs.writeFile(client.SETTINGS_FILE, JSON.stringify(db, null, 2), (err) => {
+                        if (err) console.error("Gagal save Auto-Unban:", err);
+                    });
+                }
+            } catch (error) { console.error("Auto-Unban Error:", error); }
         }, 60000);
     },
 };

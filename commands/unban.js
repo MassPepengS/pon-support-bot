@@ -41,11 +41,16 @@ module.exports = {
             if (logChannel) {
                 let caseId = "000000";
                 try {
-                    let db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-                    if (!db[guild.id]) db[guild.id] = {};
-                    db[guild.id].caseCount = (db[guild.id].caseCount || 0) + 1;
-                    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
-                    caseId = db[guild.id].caseCount.toString().padStart(6, '0');
+                    // 🚀 BACA DARI MESIN RAM SETTINGS (Anti-Lag & Sinkron)
+                    const guildSettings = ctx.client.checkDatabase(guild.id);
+                    guildSettings.caseCount = (guildSettings.caseCount || 0) + 1;
+                    
+                    // Simpan asinkron di latar belakang
+                    fs.writeFile(SETTINGS_FILE, JSON.stringify(ctx.client.databaseCache, null, 2), (err) => {
+                        if (err) console.error("Gagal save caseCount Unban:", err);
+                    });
+                    
+                    caseId = guildSettings.caseCount.toString().padStart(6, '0');
                 } catch (err) { caseId = "ERR" + Math.floor(Math.random() * 1000); }
 
                 const embed = new EmbedBuilder()

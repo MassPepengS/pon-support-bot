@@ -38,11 +38,14 @@ module.exports = {
             if (logChannel) {
                 let caseId = "000000";
                 try {
-                    let db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-                    if (!db[ctx.guild.id]) db[ctx.guild.id] = {};
-                    db[ctx.guild.id].caseCount = (db[ctx.guild.id].caseCount || 0) + 1;
-                    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
-                    caseId = db[ctx.guild.id].caseCount.toString().padStart(6, '0');
+                    // 🚀 BACA DARI MESIN RAM SETTINGS
+                    const guildSettings = ctx.client.checkDatabase(ctx.guild.id);
+                    guildSettings.caseCount = (guildSettings.caseCount || 0) + 1;
+                    
+                    fs.writeFile(SETTINGS_FILE, JSON.stringify(ctx.client.databaseCache, null, 2), (err) => {
+                        if (err) console.error("Gagal save caseCount Ban:", err);
+                    });
+                    caseId = guildSettings.caseCount.toString().padStart(6, '0');
                 } catch (err) { caseId = "ERR" + Math.floor(Math.random() * 1000); }
 
                 const embed = new EmbedBuilder()

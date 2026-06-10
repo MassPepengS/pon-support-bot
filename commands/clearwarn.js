@@ -19,20 +19,27 @@ module.exports = {
     async executeAction(ctx, target, staff, reason, settings, SETTINGS_FILE) {
         const guildId = ctx.guild.id;
         
-        let db = {};
-        try { db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch (e) { db = {}; }
-        if (!db[guildId]) db[guildId] = {};
-        if (!db[guildId].warns) db[guildId].warns = {};
+        // 🚀 BACA DARI MESIN RAM MUTLAK
+        const guildSettings = ctx.client.checkDatabase(guildId);
+        if (!guildSettings.warns) guildSettings.warns = {};
+        if (!guildSettings.history) guildSettings.history = {};
 
-        // 1. Reset Warns ke 0
-        db[guildId].warns[target.id] = 0;
-        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
+        // 1. Reset Warns ke 0 & PEMUSNAHAN HISTORY TOTAL
+        guildSettings.warns[target.id] = 0;
+        guildSettings.history[target.id] = []; 
+
+        // Update Case Count untuk Log
+        guildSettings.caseCount = (guildSettings.caseCount || 0) + 1;
+        const caseId = guildSettings.caseCount.toString().padStart(6, '0');
+
+        // Simpan Asinkron ke Hardisk (Anti-Lag)
+        fs.writeFile(SETTINGS_FILE, JSON.stringify(ctx.client.databaseCache, null, 2), (err) => {});
 
         // 2. Cabut Timeout/Mute secara paksa
         await target.timeout(null, 'Warns cleared').catch(()=>{});
 
         // 3. Cabut Mute Role jika ada
-        const muteRole = db[guildId].muteRoleId || settings[guildId]?.muteRoleId;
+        const muteRole = guildSettings.muteRoleId;
         if (muteRole) await target.roles.remove(muteRole).catch(()=>{});
 
         const replyMsg = `✅ **${target.user.tag}** warnings cleared (0/3) & Auto-Mute lifted. Reason: ${reason}`;
@@ -45,16 +52,18 @@ module.exports = {
             setTimeout(() => msg.delete().catch(()=>{}), 5000);
         }
 
+        // 🚀 SOLUSI ANTI NYASAR
         let logChannel = null;
-        const logChanId = db[guildId]?.modLogChannelId || settings[guildId]?.modLogChannelId;
-        if (logChanId) logChannel = ctx.guild.channels.cache.get(logChanId) || await ctx.guild.channels.fetch(logChanId).catch(() => null);
-        else logChannel = ctx.guild.channels.cache.find(c => c.name.toLowerCase().includes('mod'));
+        const logChanId = guildSettings.modLogChannelId;
+        
+        if (logChanId) {
+            logChannel = ctx.guild.channels.cache.get(logChanId) || await ctx.guild.channels.fetch(logChanId).catch(() => null);
+        } else {
+            // Pencarian nama pasti, bukan .includes()
+            logChannel = ctx.guild.channels.cache.find(c => c.name === 'moderation-logs' || c.name === 'mod-logs');
+        }
 
         if (logChannel) {
-            db[guildId].caseCount = (db[guildId].caseCount || 0) + 1;
-            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
-            const caseId = db[guildId].caseCount.toString().padStart(6, '0');
-
             const embed = new EmbedBuilder()
                 .setColor('#2ECC71') // Warna Hijau Pengampunan
                 .setAuthor({name: `Mod Action | ${target.user.username}`})

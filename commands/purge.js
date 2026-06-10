@@ -77,19 +77,27 @@ module.exports = {
             }
 
             // MOD LOG SYSTEM
-            let db = {};
-            try { db = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch (e) { db = {}; }
-            if (!db[guildId]) db[guildId] = {};
+            // 🚀 BACA DARI MESIN RAM SETTINGS
+            const guildSettings = ctx.client.checkDatabase(guildId);
 
+            // 🚀 SOLUSI ANTI NYASAR
             let logChannel = null;
-            const logChanId = db[guildId]?.modLogChannelId || settings[guildId]?.modLogChannelId;
-            if (logChanId) logChannel = ctx.guild.channels.cache.get(logChanId) || await ctx.guild.channels.fetch(logChanId).catch(() => null);
-            else logChannel = ctx.guild.channels.cache.find(c => c.name.toLowerCase().includes('mod'));
+            const logChanId = guildSettings.modLogChannelId;
+            
+            if (logChanId) {
+                logChannel = ctx.guild.channels.cache.get(logChanId) || await ctx.guild.channels.fetch(logChanId).catch(() => null);
+            } else {
+                // Pencarian nama pasti, bukan .includes()
+                logChannel = ctx.guild.channels.cache.find(c => c.name === 'moderation-logs' || c.name === 'mod-logs');
+            }
 
             if (logChannel) {
-                db[guildId].caseCount = (db[guildId].caseCount || 0) + 1;
-                fs.writeFileSync(SETTINGS_FILE, JSON.stringify(db, null, 2));
-                const caseId = db[guildId].caseCount.toString().padStart(6, '0');
+                guildSettings.caseCount = (guildSettings.caseCount || 0) + 1;
+                
+                fs.writeFile(SETTINGS_FILE, JSON.stringify(ctx.client.databaseCache, null, 2), (err) => {
+                    if (err) console.error("Gagal save caseCount Purge:", err);
+                });
+                const caseId = guildSettings.caseCount.toString().padStart(6, '0');
 
                 const staff = ctx.user || ctx.author;
 

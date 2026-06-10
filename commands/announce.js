@@ -10,18 +10,15 @@ module.exports = {
     async executePrefix(message, args) {
         const p = 'pon'; // Prefix
 
-        // 1. Verifikasi Izin Admin (Security Check)
         if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
             return message.reply({ content: '❌ **Access Denied:** You do not have the Administrator permission required to use this command.' });
         }
 
-        // 2. Validasi Target Channel
         const targetChannel = message.mentions.channels.first();
         if (!targetChannel) {
-            return message.reply({ content: `**Usage:** \`${p} announce [#channel] [Title] | [Message]\`\n*Tip: Use the | symbol to separate the title from the message. You can also attach an image directly!*` });
+            return message.reply({ content: `**Usage:** \`${p} announce [#channel] [Title] | [Message] | [@ping]\`\n*Tip: Upload 1 image for the main picture, or upload 2 images at once (1st = Main Image, 2nd = Thumbnail).*` });
         }
 
-        // 3. Ekstrak Teks Pengumuman
         const commandRegex = new RegExp(`^${p}\\s+announce\\s+<#\\d+>\\s*`, 'i');
         const rawText = message.content.replace(commandRegex, '');
 
@@ -29,33 +26,32 @@ module.exports = {
             return message.reply({ content: '❌ You must provide text or attach an image to make an announcement.' });
         }
 
-        // 4. Memisahkan Judul dan Pesan menggunakan simbol "|"
         let titleText = null;
         let descText = rawText;
+        let pingText = null;
 
         if (rawText.includes('|')) {
             const parts = rawText.split('|');
-            titleText = parts[0].trim();
-            descText = parts.slice(1).join('|').trim();
+            titleText = parts[0] ? parts[0].trim() : null;
+            descText = parts[1] ? parts[1].trim() : null; // Ubah ke null jika kosong
+            pingText = parts[2] ? parts[2].trim() : null;
         }
 
-        // 5. Ambil Lampiran Gambar (Jika ada)
-        const attachment = message.attachments.first();
-        const imageUrl = attachment ? attachment.url : null;
+        const attachments = Array.from(message.attachments.values());
+        const imageUrl = attachments.length > 0 ? attachments[0].url : null;
+        const thumbnailUrl = attachments.length > 1 ? attachments[1].url : null;
 
-        // 6. Rakit Embed Bersih & Minimalis (SOP #3) + Footer (Sesuai Permintaan)
+        // Bikin embed TANPA waktu (timestamp) di bawahnya
         const embed = new EmbedBuilder()
-            .setColor('#2F3136')
-            .setFooter({ text: `Published by ${message.author.tag}`, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
-            .setTimestamp();
+            .setColor('#2F3136');
 
         if (titleText) embed.setTitle(titleText);
         if (descText) embed.setDescription(descText);
         if (imageUrl) embed.setImage(imageUrl);
+        if (thumbnailUrl) embed.setThumbnail(thumbnailUrl);
 
-        // 7. Eksekusi Pengiriman
         try {
-            await targetChannel.send({ embeds: [embed] });
+            await targetChannel.send({ content: pingText ? pingText : undefined, embeds: [embed] });
             return message.reply({ content: `✅ **Success!** Announcement has been published to ${targetChannel}.` });
         } catch (error) {
             console.error(error);
@@ -74,50 +70,62 @@ module.exports = {
             option.setName('channel')
                 .setDescription('The channel where the announcement will be sent')
                 .setRequired(true))
+        // SEMUA OPTION DI BAWAH INI SEKARANG FALSE (BEBAS / OPSIONAL)
         .addStringOption(option =>
             option.setName('title')
-                .setDescription('The title of the announcement')
-                .setRequired(true))
+                .setDescription('The title of the announcement (Optional)')
+                .setRequired(false))
         .addStringOption(option =>
             option.setName('message')
-                .setDescription('The announcement text (Type \\n for a new line/enter)')
-                .setRequired(true))
+                .setDescription('The announcement text (Type \\n for a new line) (Optional)')
+                .setRequired(false))
         .addAttachmentOption(option =>
             option.setName('image')
-                .setDescription('Attach an image for the announcement (Optional)')
+                .setDescription('Attach a main image for the announcement (Optional)')
+                .setRequired(false))
+        .addAttachmentOption(option =>
+            option.setName('thumbnail')
+                .setDescription('Attach a small thumbnail image for the top right corner (Optional)')
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('ping')
+                .setDescription('Tag someone or @everyone (Optional)')
                 .setRequired(false)),
 
     async executeSlash(interaction) {
-        // 1. Verifikasi Izin
         if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
             return interaction.reply({ content: '❌ **Access Denied:** Administrator permission required.', ephemeral: true });
         }
 
-        // 2. Ambil Data dari Form Slash Command
         const targetChannel = interaction.options.getChannel('channel');
         const titleText = interaction.options.getString('title');
         let descText = interaction.options.getString('message');
         const attachment = interaction.options.getAttachment('image');
+        const thumbnail = interaction.options.getAttachment('thumbnail');
+        const pingText = interaction.options.getString('ping');
 
-        // Mengubah kode \n yang diketik manual menjadi 'Enter' (Baris Baru) yang asli
-        descText = descText.replace(/\\n/g, '\n');
-
-        // 3. Rakit Embed Bersih & Minimalis (SOP #3) + Footer (Sesuai Permintaan)
-        const embed = new EmbedBuilder()
-            .setColor('#2F3136')
-            .setTitle(titleText)
-            .setDescription(descText)
-            .setFooter({ text: `Published by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
-            .setTimestamp();
-
-        // Pasang gambar jika ada
-        if (attachment) {
-            embed.setImage(attachment.url);
+        // Validasi Anti-Kosong Mutlak
+        if (!titleText && !descText && !attachment && !thumbnail) {
+            return interaction.reply({ content: '❌ **Error:** You cannot send a completely empty announcement. Please provide at least a title, message, or an image.', ephemeral: true });
         }
 
-        // 4. Eksekusi Pengiriman
+        // Mencegah error code replace jika descText dikosongkan admin
+        if (descText) {
+            descText = descText.replace(/\\n/g, '\n');
+        }
+
+        // Bikin embed TANPA waktu (timestamp) di bawahnya
+        const embed = new EmbedBuilder()
+            .setColor('#2F3136');
+
+        // Menyusun embed sesuai ketersediaan data
+        if (titleText) embed.setTitle(titleText);
+        if (descText) embed.setDescription(descText);
+        if (attachment) embed.setImage(attachment.url);
+        if (thumbnail) embed.setThumbnail(thumbnail.url);
+
         try {
-            await targetChannel.send({ embeds: [embed] });
+            await targetChannel.send({ content: pingText ? pingText : undefined, embeds: [embed] });
             return interaction.reply({ content: `✅ **Success!** Announcement has been published to ${targetChannel}.`, ephemeral: true }); 
         } catch (error) {
             console.error(error);
